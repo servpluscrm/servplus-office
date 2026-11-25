@@ -300,10 +300,13 @@ body.hp-off .hp-open { display: block; }
 @keyframes hpPulse { 50% { box-shadow: 0 0 0 6px rgba(220,38,38,.15); } }
 .hp-send { width: 42px; height: 42px; border-radius: 50%; border: 0; background: #e98aa5; color: #fff; font-size: 17px; cursor: pointer; }
 .hp-send:hover { background: var(--hp); }
-@media (max-width: 1100px) {
+@media (max-width: 1100px) { .hp { width: 300px; } }
+@media (max-width: 760px) {
   .hp { position: fixed; right: 0; top: 0; z-index: 60; box-shadow: -8px 0 24px rgba(0,0,0,.15); }
 }
 @media (max-width: 760px) { .hp { width: 100%; } }
+.hp-x-phone { display: none; }
+@media (max-width: 760px) { .hp-x-phone { display: block; } }
 
 /* 🗓 Week + month on My Workday */
 .cal-nav { display: inline-flex; gap: 4px; }
@@ -386,3 +389,26 @@ div.cal-it { cursor: default; }
 .spc-yes:disabled { opacity: .5; }
 .spc-note { font-size: 11px; color: #9a7a84; margin-top: 6px; }
 .spc-done { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+
+/* 📝 Scratch pad, always at the top of the helper (notepad.js padDraw) */
+.hp-pad { margin: 0 14px 6px; background: #fffdf5; border: 1px solid #f1dfae; border-radius: 14px; padding: 10px 10px 8px; box-shadow: 0 2px 8px rgba(184,59,94,.08); max-height: 46vh; overflow-y: auto; flex-shrink: 0; }
+.pad-head { display: flex; align-items: center; justify-content: space-between; color: #6b4a1f; font-size: 14px; margin-bottom: 6px; }
+.pad-saved { font-size: 11px; color: #9a8255; }
+#hpPad { width: 100%; box-sizing: border-box; min-height: 110px; resize: vertical; border: 0; border-radius: 8px; padding: 8px; font: inherit; font-size: 14px; line-height: 1.5; color: #3b2f1a;
+  background: repeating-linear-gradient(#fffdf5, #fffdf5 20px, #efe4c4 21px); background-attachment: local; outline: 1px solid #efe4c4; }
+#hpPad:focus { outline: 2px solid #e9b949; }
+.pad-btns { display: flex; justify-content: flex-end; margin-top: 6px; }
+.pad-clean { border: 0; border-radius: 18px; padding: 7px 14px; background: var(--hp); color: #fff; font-weight: 700; cursor: pointer; font: inherit; font-size: 13px; }
+.pad-clean:disabled { opacity: .6; }
+.pad-ih { font-size: 12px; color: #7a5b65; font-weight: 600; margin: 8px 2px 5px; }
+.pad-it { display: flex; align-items: stretch; gap: 4px; margin-bottom: 5px; }
+.pad-go { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; text-align: left; border: 1px solid #f0d5dd; background: #fff; border-radius: 10px; padding: 7px 8px; cursor: pointer; font: inherit; }
+.pad-go:hover { border-color: var(--hp); }
+.pad-it.ask .pad-go { border-color: #f0b429; background: #fffaeb; }
+.pad-ico { font-size: 17px; }
+.pad-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pad-tx b { font-size: 13px; color: #3f2a31; }
+.pad-tx small { font-size: 11px; color: #8a6a74; }
+.pad-chev { color: #b83b5e; font-weight: 700; }
+.pad-x { border: 0; background: none; color: #b08a96; cursor: pointer; padding: 0 4px; }
+.pad-ask-t { font-weight: 700; margin-bottom: 6px; }

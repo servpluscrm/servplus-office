@@ -15,7 +15,8 @@ function hp() {
   h.notNow ||= {};
   return h;
 }
-function hpHidden() { const v = localStorage.getItem('office-hp-hidden'); return v ? v === '1' : innerWidth < 1100; }
+// Always open on a computer (owner 2026-11-25: "always have the scratch pad and the AI agent open"); only a phone-size screen can hide it.
+function hpHidden() { if (innerWidth > 760) return false; const v = localStorage.getItem('office-hp-hidden'); return v ? v === '1' : true; }
 
 // ---------- The day's list, most urgent first (all from her own records) ----------
 function helperTasks() {
@@ -45,10 +46,11 @@ function hpCurrent(list = helperTasks()) {
 function hpShell() {
   const el = document.getElementById('helper');
   el.innerHTML = `<div class="hp-top">
-      <button class="hp-x" data-action="hpHide" title="Hide">✕</button>
+      <button class="hp-x hp-x-phone" data-action="hpHide" title="Hide">✕</button>
       <div class="hp-badge">✦</div>
       <div><div class="hp-title">Ask SERVPLUS AI</div><div class="hp-sub">Your Office Assistant</div></div>
     </div>
+    <div class="hp-pad" id="hpPadBox"></div>
     <div class="hp-body" id="hpBody"></div>
     <form class="hp-ask" id="hpAsk" autocomplete="off">
       <input id="hpInput" placeholder="Type anything: “remind me to… on Friday”, “ask the owner…”" data-no-draft>
@@ -76,7 +78,7 @@ function hpHomeHtml() {
   const h = new Date().getHours();
   const hi = h < 12 ? 'Good morning! 👋' : h < 17 ? 'Hi there! 👋' : 'Good evening! 👋';
   const card = (act, ico, t, s, extra = '') => `<button class="hp-card" data-action="${act}"><span class="hp-ico">${ico}</span><span class="hp-ct"><b>${t}</b><small>${s}</small></span>${extra}<span class="hp-chev">›</span></button>`;
-  return `<div class="hp-bubble"><b>${hi}</b><br>I'm here to help you stay organized, find information, process documents and get things done one at a time.</div>
+  return `
     ${cur ? `<button class="hp-now" data-action="hpPlan"><span class="hp-now-l">Right now</span><b>${esc(cur.ico)} ${esc(cur.title)}</b><small>${esc(cur.sub)}</small></button>` : ''}
     <div class="hp-q">How can I help you today?</div>
     ${card('scanStart', HP_ICO.scan, 'Scan a Document', 'Bills, receipts, COIs, invoices and more')}

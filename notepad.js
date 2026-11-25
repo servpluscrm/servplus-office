@@ -18,7 +18,7 @@ const SP_MONEY_RE = /\$\s?(\d[\d,]*(\.\d{1,2})?)|\b(\d[\d,]*(\.\d{2})?)\s?(dolla
 // Cut a brain dump into separate items: lines, bullets, ";", sentences, "also".
 // Run-on typing ("remind me to cash checks on friday ask the owner about comcast bill") is also cut before words that
 // start a new thing (remind me, ask the owner, pay the, order…); a piece left hanging ("remind me to") joins the next one.
-const SP_STARTERS = /\s*,?\s+(?:and\s+|then\s+)?(?=(?:remind me|don'?t forget|remember to|ask (?:the )?(?:owner|boss)|check with (?:the )?(?:owner|boss)|tell (?:the )?(?:owner|boss)|pay (?:the )?|order (?:more |some )?|buy (?:more |some )?|park:)\b)/i;
+const SP_STARTERS = /\s*,?\s+(?:and\s+|then\s+)?(?=(?:remind me|don'?t forget|remember to|ask (?:the )?(?:owner|boss)|check with (?:the )?(?:owner|boss)|tell (?:the )?(?:owner|boss)|pay (?:the )?|order (?:more |some )?|buy (?:more |some )?|park:|approve|talk to|call|email|text|check on|follow up with|set up|look into|send)\b)/i;
 function spSplit(text) {
   const parts = text.split(/\n+/)
     .flatMap(l => l.split(/;|(?<=[a-z0-9)])[.!]\s+(?=[A-Za-z])|\s+(?:and\s+)?also\s+/i))
@@ -44,12 +44,14 @@ function spGuess(raw) {
   const text = spClean(p ? p.text : raw);
   const m = raw.match(SP_MONEY_RE), amount = m ? moneyParse(m[1] || m[3]) : '';
   const it = { text, dest: '', date, amount, vendor: '', sure: true };
-  if (/\b(ask|check with|run (it|this|that)? ?by|tell)\s+(the\s+)?(owner|boss)\b|\bowner\b.*\b(approv|ok|sign off)|\bneeds? (owner )?approval/.test(n)) it.dest = 'owner';
+  if (/\b(ask|check with|run (it|this|that)? ?by|tell)\s+(the\s+)?(owner|boss)\b|\bowner\b.*\b(approv|ok|sign off)|\bapprov\w*\b.*\b(owner|boss)\b|\bneeds? (owner )?approval/.test(n)) it.dest = 'owner';
   else if (/\b(bill|invoice|statement|payment due|owe|past due|autopay)\b|\bpay (the )?\w+/.test(n) && !/pay later/.test(n)) {
     it.dest = 'bill';
     const v = raw.match(/\b[Pp]ay(?:\s+the)?\s+([A-Z][\w&'.-]*(?:\s+[A-Z][\w&'.-]*)*)/) || raw.match(/\b([A-Z][\w&'.-]*(?:\s+[A-Z][\w&'.-]*)*)\s+([Bb]ill|[Ii]nvoice|[Ss]tatement)/);
     it.vendor = v ? v[1].replace(/^(Pay\s+)?(The|My|Our)\s+/, '').replace(/^Pay\s+/, '') : '';
+    if (!it.vendor) { const w = raw.match(/\bpay\s+(?:the\s+)?([a-z][\w&'.-]*)/i); if (w && !/^(for|bill|invoice|it|them|him|her)$/i.test(w[1])) it.vendor = spCap(w[1]); }
     it.text = spCap(it.text.replace(SP_MONEY_RE, '').replace(/^pay\s+(the\s+)?/i, '').replace(/\s+(by|before|due)$/i, '').replace(/\s+/g, ' ').trim());
+    if (it.vendor && norm(it.text) === norm(it.vendor)) it.text = 'Pay ' + it.vendor;
     if (!it.date || !it.amount || !it.vendor) it.sure = false;
   }
   else if (/\b(renew\w*|expir\w*|license|registration|tabs|policy|coi|certificat\w*)\b/.test(n)) { it.dest = 'renewal'; if (!date) it.sure = false; }
@@ -58,7 +60,7 @@ function spGuess(raw) {
     it.text = spCap(text.replace(/^(order|buy|purchase|restock|get|pick up)\s+(more\s+|some\s+|a\s+|an\s+)?/i, '').replace(/^(we('re| are) )?(running low on|out of)\s+/i, '').replace(/^need more\s+/i, ''));
   }
   else if (date) it.dest = 'cal';
-  else if (/^(call|email|text|send|follow up|follow-up|check|file|print|update|schedule|book|pick up|drop off|mail|reply|look into|find|clean|wash|fill|sign|scan|enter|do)\b/.test(norm(text))) it.dest = 'today';
+  else if (/^(talk to|meet|call|email|text|send|follow up|follow-up|check|file|print|update|schedule|book|pick up|drop off|mail|reply|look into|find|clean|wash|fill|sign|scan|enter|do)\b/.test(norm(text))) it.dest = 'today';
   else { it.dest = ''; it.sure = false; }
   if (it.dest === 'cal' && date === today()) it.dest = 'today';
   if (/^\s*park\b/i.test(raw) && (!it.dest || it.dest === 'today')) { it.dest = 'today'; it.sure = true; }
@@ -268,17 +270,98 @@ Object.assign(actions, {
   spSortParked: () => { const p = hp().parked; if (!p.length) return toast('Nothing parked'); spOpen({ text: p.map(x => x.text).join('\n'), parkedIds: p.map(x => x.id), items: p.flatMap(x => spSplit(x.text).map(s => ({ ...spGuess(s), from: x.id }))) }); }
 });
 
-// Parked thoughts are gone (owner 2026-11-25: "we don't need her to park her thought anymore, the AI should put her
-// thought in the right places"). Any left from before show ONCE per visit in the chat, sorted, so she can file them.
-let spParkedShown = false;
-const spDrawHelper0 = drawHelper;
-drawHelper = function () {
-  const p = db && hp().parked;
-  if (p?.length && !spParkedShown) {
-    spParkedShown = true;
-    hpChat.push({ who: 'ai', html: `You still had <b>${p.length}</b> thing${p.length > 1 ? 's' : ''} saved from before. Here’s where I’d put ${p.length > 1 ? 'them' : 'it'}:` },
-      { who: 'ai', sp: { items: p.flatMap(x => spSplit(x.text).map(s => ({ ...spGuess(s), from: x.id, on: true }))), parkedIds: p.map(x => x.id) } });
-    hpView = 'chat';
+// ---------- 📝 The Scratch Pad (owner 2026-11-25): always at the top of the helper, which is always open. She scribbles
+// anything (leaving the office, interrupted); it saves by itself (db.helper.pad). Next day ✨ Clean up turns it into a
+// clean list (db.helper.padItems), each item showing where it would go; tapping one asks where + the few details it needs,
+// then files it. Old parked thoughts (that feature is gone) are moved into the pad once. ----------
+let padSaveT = 0, padBusy = false;
+function padItems() { const h = hp(); h.padItems ||= []; return h.padItems; }
+function padDraw() {
+  const box = document.getElementById('hpPadBox'); if (!box || !db) return;
+  const h = hp(), items = padItems();
+  if (h.parked?.length) { h.pad = [h.pad, ...h.parked.map(p => p.text)].filter(Boolean).join('\n'); h.parked = []; saveDb(); }
+  if (!box.firstChild) {
+    box.innerHTML = `<div class="pad-head"><b>📝 Scratch pad</b><span class="pad-saved" id="padSaved"></span></div>
+      <textarea id="hpPad" placeholder="Jot anything down here: on your way out, when you get interrupted… It saves by itself. Tomorrow tap ✨ Clean up."></textarea>
+      <div class="pad-btns"><button class="pad-clean" data-pad-clean>✨ Clean up</button></div>
+      <div class="pad-items" id="padItems"></div>`;
   }
-  return spDrawHelper0.apply(this, arguments);
-};
+  const ta = document.getElementById('hpPad');
+  if (document.activeElement !== ta && ta.value !== (h.pad || '')) ta.value = h.pad || '';
+  const cb = box.querySelector('[data-pad-clean]');
+  cb.disabled = padBusy; cb.textContent = padBusy ? '✨ Cleaning up…' : '✨ Clean up';
+  document.getElementById('padItems').innerHTML = items.length ? `<div class="pad-ih">Cleaned up · tap one to put it where it goes</div>${items.map(x => `<div class="pad-it ${x.dest ? '' : 'ask'}">
+      <button class="pad-go" data-pad-go="${x.id}"><span class="pad-ico">${x.dest ? SP_DEST[x.dest].ico : '❓'}</span><span class="pad-tx"><b>${esc(x.text)}</b><small>${x.dest ? SP_DEST[x.dest].label + (x.date && ['cal', 'bill', 'renewal'].includes(x.dest) ? ' · ' + fmtDay(x.date) : '') : 'Needs a place'}</small></span><span class="pad-chev">›</span></button>
+      <button class="pad-x" data-pad-del="${x.id}" title="Not needed">✕</button></div>`).join('')}` : '';
+}
+const padDrawHelper0 = drawHelper;
+drawHelper = function () { const r = padDrawHelper0.apply(this, arguments); padDraw(); return r; };
+
+document.addEventListener('input', e => {
+  if (e.target.id !== 'hpPad') return;
+  hp().pad = e.target.value; document.getElementById('padSaved').textContent = 'saving…';
+  clearTimeout(padSaveT); padSaveT = setTimeout(async () => { await saveDb(); const s = document.getElementById('padSaved'); if (s) s.textContent = '✓ saved'; }, 700);
+});
+document.addEventListener('click', async e => {
+  if (e.target.closest('[data-pad-clean]')) return padClean();
+  const go = e.target.closest('[data-pad-go]'); if (go) return padMove(go.dataset.padGo);
+  const del = e.target.closest('[data-pad-del]');
+  if (del) {
+    const x = byId(padItems(), del.dataset.padDel); if (!x) return;
+    if (!(await sure('Remove this from the scratch pad?', [esc(x.text)], 'Yes, remove'))) return;
+    hp().padItems = padItems().filter(i => i !== x); await saveDb(); padDraw();
+  }
+});
+
+async function padClean() {
+  const h = hp(), text = (document.getElementById('hpPad')?.value ?? h.pad ?? '').trim();
+  if (!text) return toast('The scratch pad is empty');
+  padBusy = true; padDraw();
+  const r = await spSort(text);
+  padBusy = false;
+  if (!r.items.length) { padDraw(); return toast('I couldn’t find anything to clean up'); }
+  const now = Date.now();
+  padItems().push(...r.items.map(x => ({ id: uid(), text: x.text, dest: x.dest, date: x.date, amount: x.amount, vendor: x.vendor, at: now })));
+  h.pad = ''; h.padOld = text;   // what she wrote is kept once, just in case
+  const ta = document.getElementById('hpPad'); if (ta) ta.value = '';
+  await saveDb(); padDraw();
+  toast(`✨ Cleaned up into ${r.items.length} item${r.items.length > 1 ? 's' : ''}`);
+}
+
+// Tap an item: where does it go? → the few details for that place → are you sure? → filed and off the pad.
+async function padMove(id) {
+  const x = byId(padItems(), id); if (!x) return;
+  const dest = await ask('Where should this go?', `<div class="pad-ask-t">“${esc(x.text)}”</div>${x.dest ? `<div class="small muted">I think: ${SP_DEST[x.dest].ico} ${SP_DEST[x.dest].label}</div>` : ''}`,
+    [{ label: 'Cancel', value: null }, ...Object.entries(SP_DEST).map(([k, v]) => ({ label: `${v.ico} ${v.label}`, cls: k === x.dest ? 'pri' : '', value: k }))]);
+  if (!dest) return;
+  const amt = x.amount === '' || x.amount == null ? '' : +x.amount, now = Date.now();
+  let v, line, add;
+  if (dest === 'cal') {
+    v = await form('📅 Put it on the calendar', [{ name: 'text', label: 'What', required: true }, { name: 'date', label: 'Which day?', type: 'date', required: true }], { text: x.text, date: x.date });
+    if (v) { line = `📅 ${esc(v.text)} · ${fmtDay(v.date, true)}`; add = () => { db.events ||= []; db.events.push({ id: uid(), text: v.text, date: v.date, at: now, via: 'scratch pad' }); }; }
+  } else if (dest === 'today') {
+    v = await form('✅ Add to today’s list', [{ name: 'text', label: 'What', required: true }], { text: x.text });
+    if (v) { line = `✅ ${esc(v.text)} · today`; add = () => workdayToday().d.extra.push({ id: uid(), text: v.text }); }
+  } else if (dest === 'bill') {
+    v = await form('🧾 Add the bill', billFields(), { vendor: x.vendor, what: x.text, amount: amt, due: x.date, repeat: 'none' });
+    if (v) { line = `🧾 ${esc(v.vendor)} · ${money(v.amount)} · due ${fmtDay(v.due, true)}`; add = () => db.bills.push({ id: uid(), ...v, at: now }); }
+  } else if (dest === 'shop') {
+    v = await form('🛒 Shop purchase request', purFields(), { item: x.text, qty: 1, price: amt, by: 'Office Manager' });
+    if (v) { v.qty = Number(v.qty) || 1; line = `🛒 ${esc(v.item)}${v.qty > 1 ? ' × ' + v.qty : ''}${v.price ? ' · ' + money(v.price * v.qty) : ''}`; add = () => db.purchases.push({ id: uid(), ...v, status: 'pending', at: now }); }
+  } else if (dest === 'owner') {
+    v = await form('👤 Ask the owner', [
+      { name: 'title', label: 'What do you need from the owner?', required: true },
+      { name: 'kind', label: 'Kind', type: 'select', options: ['Purchase', 'Bill', 'Equipment', 'Insurance', 'Other'], half: true },
+      { name: 'amount', label: 'Amount', type: 'money', half: true },
+      { name: 'detail', label: 'Details', type: 'textarea' }], { title: x.text, kind: 'Other', amount: amt });
+    if (v) { line = `👤 ${esc(v.title)}${v.amount ? ' · ' + money(v.amount) : ''}`; add = () => db.approvals.push({ id: uid(), ...v, purchaseId: '', billId: '', status: 'pending', askedAt: now }); }
+  } else if (dest === 'renewal') {
+    v = await form('🛡️ Renewal', rnFields(), { name: x.text, expires: x.date });
+    if (v) { line = `🛡️ ${esc(v.name)} · expires ${fmtDay(v.expires, true)}`; add = () => db.renewals.push({ id: uid(), ...v }); }
+  }
+  if (!v) return;
+  if (!(await sure('Put it here?', [line], 'Yes, put it there'))) return;
+  add(); hp().padItems = padItems().filter(i => i !== x);
+  await saveDb(); render(); toast('✓ Put away');
+}
+
