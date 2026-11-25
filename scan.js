@@ -33,6 +33,30 @@ async function docOpen(id) {
   if (!f) return toast('The original isn’t on this computer');
   window.open(URL.createObjectURL(f.blob), '_blank', 'noopener');
 }
+// The scanned document(s) behind a record (bill, renewal, purchase…): its docId / paidDocId, or a doc pointing at it.
+function docsFor(rec) {
+  if (!rec) return [];
+  const ids = new Set([rec.docId, rec.paidDocId].filter(Boolean));
+  (db.docs || []).forEach(d => { if ([d.billId, d.renewalId, d.purchaseId, d.receiptId].includes(rec.id)) ids.add(d.id); });
+  return [...ids].map(id => byId(db.docs || [], id)).filter(Boolean);
+}
+// Top of a record's window: a picture of the scanned document (owner 2026-11-25: "should have a picture of the
+// document scanned if there is one"). Filled in after the window opens (fillDocPreviews, called by form()).
+function docPreviewHtml(rec) {
+  const ds = docsFor(rec); if (!ds.length) return '';
+  return `<div class="doc-prevs">${ds.map(d => `<div class="doc-prev" data-doc="${d.id}" title="Open the full document">
+    <div class="doc-prev-img">Loading…</div><div class="doc-prev-cap">📄 ${esc(d.name)} · <b>Open full size ›</b></div></div>`).join('')}</div>`;
+}
+async function fillDocPreviews(root) {
+  for (const el of root.querySelectorAll('.doc-prev[data-doc]')) {
+    const f = await fileGet(el.dataset.doc), box = el.querySelector('.doc-prev-img');
+    if (!f) { box.textContent = 'The original isn’t on this computer'; continue; }
+    const url = URL.createObjectURL(f.blob);
+    box.innerHTML = /pdf/.test(f.type || f.blob.type) ? `<iframe src="${url}#toolbar=0&view=FitH" title="Document"></iframe>` : `<img src="${url}" alt="Scanned document">`;
+    el.addEventListener('click', e => { e.preventDefault(); docOpen(el.dataset.doc); });
+  }
+}
+
 function readBase64(blob) {
   return new Promise(res => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.readAsDataURL(blob); });
 }

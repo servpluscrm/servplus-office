@@ -28,8 +28,8 @@ function dayItems(day) {
   db.approvals.filter(a => a.status === 'later' && a.laterDate === day).forEach(a => out.push({ ico: '🕒', text: `Owner: ${a.title}`, cls: 'bill', act: `apReview" data-id="${a.id}` }));
   db.purchases.filter(p => p.delivery === day && p.status === 'ordered').forEach(p => out.push({ ico: '📦', text: `Delivery: ${p.item}`, cls: '', act: `purOpen" data-id="${p.id}` }));
   db.timeOff.filter(t => t.from <= day && t.to >= day).forEach(t => out.push({ ico: '✈️', text: t.who, cls: 'off', act: 'calGo" data-go="#/calendar' }));
-  if (dow === 5) out.push({ ico: '🛒', text: 'Purchasing day', cls: 'rule', act: 'calGo" data-go="#/purchasing' }, { ico: '🥐', text: 'Friday meeting breakfast', cls: 'rule', act: '' });
-  if (dow === 4) out.push({ ico: '🥤', text: 'Red Bulls for Friday', cls: 'rule', act: '' });
+  if (dow === 5) out.push({ ico: '🛒', text: 'Purchasing day', cls: 'rule', act: 'calGo" data-go="#/purchasing' }, { ico: '🥐', text: 'Friday meeting breakfast', cls: 'rule', act: 'calGo" data-go="#/purchasing' });
+  if (dow === 4) out.push({ ico: '🥤', text: 'Red Bulls for Friday', cls: 'rule', act: 'calGo" data-go="#/purchasing' });
   if (dow === 0) out.push({ ico: '🌙', text: 'After-hours dispatch', cls: 'rule', act: 'calGo" data-go="#/dispatch' });
   return out;
 }
@@ -65,7 +65,7 @@ function monthHtml() {
     ${cells.slice(0, rows).map(d => {
       const items = dayItems(d).filter(i => i.cls !== 'rule');
       return `<div class="cal-cell ${dayOf(d).getMonth() !== month ? 'out' : ''} ${d === t ? 'today' : ''}" data-action="calDay" data-day="${d}">
-        <div class="cal-num">${dayOf(d).getDate()}</div>${items.slice(0, 3).map(i => calItemHtml({ ...i, act: '' }, true)).join('')}${items.length > 3 ? `<div class="cal-more">+${items.length - 3} more</div>` : ''}</div>`;
+        <div class="cal-num">${dayOf(d).getDate()}</div>${items.slice(0, 3).map(i => calItemHtml(i, true)).join('')}${items.length > 3 ? `<div class="cal-more">+${items.length - 3} more</div>` : ''}</div>`;
     }).join('')}</div>
     <div class="small muted" style="margin-top:8px">Click a day to see everything on it or add something. Weekly things (Friday purchasing, Sunday dispatch) show on the week above.</div></div>`;
 }
@@ -164,3 +164,5 @@ Object.assign(actions, {
   }
 });
 // Clicking something inside a month cell opens the day, not the item
+// An item clicked inside the day window opens its record and closes the day window behind it.
+document.addEventListener('click', e => { const it = e.target.closest('.modal .cal-it[data-action]'); if (it) setTimeout(() => it.closest('.modal-bg')?.remove(), 0); }, true);

@@ -130,7 +130,7 @@ function ask(title, html, buttons) {
     const key = e => { if (e.key === 'Escape') done(null); };
     bg.addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (b) done(buttons[+b.dataset.i].value); });
     document.addEventListener('keydown', key);
-    modalRoot().appendChild(bg);
+    modalRoot().appendChild(bg); window.fillDocPreviews?.(bg);
   });
 }
 async function sure(title, lines, yes = 'Yes, save') {
@@ -162,7 +162,7 @@ function form(title, fields, values = {}, opts = {}) {
       ${opts.onDelete ? '<button class="btn red sm" data-del>🗑 Delete</button>' : ''}<button class="modal-x" data-x>✕ Close</button></div>
       <form class="modal-body" autocomplete="off">${opts.top || ''}${body}</form>
       <div class="modal-foot"><button class="btn" data-x>Cancel</button><button class="btn pri" data-save>💾 ${esc(opts.saveLabel || 'Save')}</button></div></div>`;
-    modalRoot().appendChild(bg);
+    modalRoot().appendChild(bg); window.fillDocPreviews?.(bg);
     const fm = bg.querySelector('form');
     const photos = {};
     let dirty = false;
@@ -492,7 +492,7 @@ async function purOpen(id) {
   if (p.status === 'pending') btns.push({ label: 'Send to owner', value: 'owner' }, { label: '✗ Decline', cls: 'red', value: 'decline' }, { label: '✓ Approve', cls: 'ok', value: 'approve' });
   if (p.status === 'approved') btns.push({ label: '🛒 Mark ordered', cls: 'pri', value: 'order' });
   if (p.status === 'ordered') btns.push({ label: '📦 Mark received', cls: 'pri', value: 'receive' });
-  const html = `<div style="display:flex;gap:12px">${p.photo ? `<img src="${p.photo}" style="width:120px;border-radius:10px">` : ''}<div>
+  const html = docPreviewHtml(p) + `<div style="display:flex;gap:12px">${p.photo ? `<img src="${p.photo}" style="width:120px;border-radius:10px">` : ''}<div>
     <div style="font-size:18px;font-weight:700">${esc(p.item)}${p.qty > 1 ? ' × ' + p.qty : ''}</div>
     <div>${money(purTotal(p))}${p.qty > 1 ? ` <span class="muted">(${money(p.price)} each)</span>` : ''} · <span class="pill ${st.cls}">${st.label}</span></div>
     ${p.supplier ? `<div>Supplier: <b>${esc(p.supplier)}</b>${p.partNo ? ' · Part # ' + esc(p.partNo) : ''}</div>` : ''}
@@ -609,7 +609,7 @@ async function billNew() {
 }
 async function billOpen(id) {
   const b = byId(db.bills, id); if (!b) return;
-  const v = await form('Bill · ' + b.vendor, billFields(), b, { onDelete: async () => { if (await sure('Delete this bill?', [esc(b.vendor) + ' · ' + money(b.amount)], 'Delete')) { db.bills = db.bills.filter(x => x !== b); await saveDb(); render(); return true; } } });
+  const v = await form('Bill · ' + b.vendor, billFields(), b, { top: docPreviewHtml(b), onDelete: async () => { if (await sure('Delete this bill?', [esc(b.vendor) + ' · ' + money(b.amount)], 'Delete')) { db.bills = db.bills.filter(x => x !== b); await saveDb(); render(); return true; } } });
   if (!v) return;
   if (!(await sure('Save these changes?', [`${esc(v.vendor)} · ${money(v.amount)} · due ${fmtDay(v.due, true)}`]))) return;
   Object.assign(b, v); await saveDb(); render(); toast('✓ Saved');
@@ -721,7 +721,7 @@ async function rnNew() {
 }
 async function rnOpen(id) {
   const r = byId(db.renewals, id); if (!r) return;
-  const v = await form(r.name, rnFields(), r, { onDelete: async () => { if (await sure('Delete this?', [esc(r.name)], 'Delete')) { db.renewals = db.renewals.filter(x => x !== r); await saveDb(); render(); return true; } } });
+  const v = await form(r.name, rnFields(), r, { top: docPreviewHtml(r), onDelete: async () => { if (await sure('Delete this?', [esc(r.name)], 'Delete')) { db.renewals = db.renewals.filter(x => x !== r); await saveDb(); render(); return true; } } });
   if (!v) return;
   if (!(await sure('Save these changes?', [esc(v.name) + ' · expires ' + fmtDay(v.expires, true)]))) return;
   Object.assign(r, v); await saveDb(); render(); toast('✓ Saved');

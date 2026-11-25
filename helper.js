@@ -45,18 +45,23 @@ function hpCurrent(list = helperTasks()) {
 // ---------- Drawing ----------
 function hpShell() {
   const el = document.getElementById('helper');
-  el.innerHTML = `<div class="hp-top">
+  // Two separate boxes (owner 2026-11-25): 📝 Scratch pad and ✨ the AI. The column's left edge drags wider / narrower,
+  // the bar between them drags the pad taller / shorter, ⇅ swaps which is on top (db.settings.layout.side, side.js part below).
+  el.innerHTML = `<div class="side-w" title="Drag to make this column wider or narrower · double-click = normal"></div>
+    <section class="sbox pad-sbox"><div class="hp-pad" id="hpPadBox"></div></section>
+    <div class="side-split" title="Drag to make the scratch pad taller or shorter · double-click = normal"><button class="side-swap" data-side-swap title="Swap: put the other box on top">⇅</button></div>
+    <section class="sbox ai-sbox"><div class="hp-top">
       <button class="hp-x hp-x-phone" data-action="hpHide" title="Hide">✕</button>
       <div class="hp-badge">✦</div>
       <div><div class="hp-title">Ask SERVPLUS AI</div><div class="hp-sub">Your Office Assistant</div></div>
     </div>
-    <div class="hp-pad" id="hpPadBox"></div>
     <div class="hp-body" id="hpBody"></div>
     <form class="hp-ask" id="hpAsk" autocomplete="off">
       <input id="hpInput" placeholder="Type anything: “remind me to… on Friday”, “ask the owner…”" data-no-draft>
       <button type="button" class="hp-mic" data-action="hpMic" title="Talk">🎤</button>
       <button type="submit" class="hp-send" title="Send">➤</button>
-    </form>`;
+    </form></section>`;
+  sideApply();
   document.getElementById('hpAsk').addEventListener('submit', e => { e.preventDefault(); hpAskText(); });
   document.getElementById('hpInput').addEventListener('input', e => { if (hpView === 'find') { hpFind = e.target.value; drawHelperBody(); } });
 }
