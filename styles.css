@@ -412,3 +412,8 @@ div.cal-it { cursor: default; }
 .pad-chev { color: #b83b5e; font-weight: 700; }
 .pad-x { border: 0; background: none; color: #b08a96; cursor: pointer; padding: 0 4px; }
 .pad-ask-t { font-weight: 700; margin-bottom: 6px; }
+.pad-dests { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pad-dest { display: flex; align-items: center; gap: 8px; text-align: left; border: 2px solid var(--line); background: #fff; border-radius: 10px; padding: 10px 12px; cursor: pointer; font: inherit; font-weight: 600; color: #1e293b; }
+.pad-dest span { font-size: 18px; }
+.pad-dest:hover { border-color: #93c5e8; }
+.pad-dest.on { border-color: var(--brand); background: #e8f3fc; color: var(--brand-deep); }

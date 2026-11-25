@@ -328,11 +328,40 @@ async function padClean() {
   toast(`✨ Cleaned up into ${r.items.length} item${r.items.length > 1 ? 's' : ''}`);
 }
 
+// Step 1: pick a place (her guess already picked), then Next › (owner 2026-11-25: "should be a next button here").
+function padPickDest(x) {
+  return new Promise(res => {
+    let pick = x.dest || '';
+    const bg = document.createElement('div');
+    bg.className = 'modal-bg';
+    bg.innerHTML = `<div class="modal" role="dialog">
+      <div class="modal-head"><button class="modal-x" data-x title="Back">‹</button><h3>Where should this go?</h3><button class="modal-x" data-x>✕ Close</button></div>
+      <div class="modal-body"><div class="pad-ask-t">“${esc(x.text)}”</div>${x.dest ? `<div class="small muted" style="margin-bottom:10px">I think it goes on: ${SP_DEST[x.dest].ico} ${SP_DEST[x.dest].label}</div>` : '<div class="small muted" style="margin-bottom:10px">Pick where it goes.</div>'}
+        <div class="pad-dests">${Object.entries(SP_DEST).map(([k, v]) => `<button class="pad-dest ${k === pick ? 'on' : ''}" data-d="${k}"><span>${v.ico}</span>${v.label}</button>`).join('')}</div></div>
+      <div class="modal-foot"><button class="btn" data-x>Cancel</button><button class="btn pri" data-next ${pick ? '' : 'disabled'}>Next ›</button></div></div>`;
+    const done = v => { bg.remove(); document.removeEventListener('keydown', key); res(v); };
+    const key = e => { if (e.key === 'Escape') done(null); };
+    bg.addEventListener('click', e => {
+      if (e.target === bg || e.target.closest('[data-x]')) return done(null);
+      const d = e.target.closest('[data-d]');
+      if (d) {
+        pick = d.dataset.d;
+        bg.querySelectorAll('.pad-dest').forEach(b => b.classList.toggle('on', b === d));
+        bg.querySelector('[data-next]').disabled = false;
+        if (e.detail === 2) done(pick);   // a double-click goes straight on
+        return;
+      }
+      if (e.target.closest('[data-next]') && pick) done(pick);
+    });
+    document.addEventListener('keydown', key);
+    modalRoot().appendChild(bg);
+  });
+}
+
 // Tap an item: where does it go? → the few details for that place → are you sure? → filed and off the pad.
 async function padMove(id) {
   const x = byId(padItems(), id); if (!x) return;
-  const dest = await ask('Where should this go?', `<div class="pad-ask-t">“${esc(x.text)}”</div>${x.dest ? `<div class="small muted">I think: ${SP_DEST[x.dest].ico} ${SP_DEST[x.dest].label}</div>` : ''}`,
-    [{ label: 'Cancel', value: null }, ...Object.entries(SP_DEST).map(([k, v]) => ({ label: `${v.ico} ${v.label}`, cls: k === x.dest ? 'pri' : '', value: k }))]);
+  const dest = await padPickDest(x);
   if (!dest) return;
   const amt = x.amount === '' || x.amount == null ? '' : +x.amount, now = Date.now();
   let v, line, add;

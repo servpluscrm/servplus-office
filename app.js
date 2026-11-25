@@ -167,6 +167,8 @@ function form(title, fields, values = {}, opts = {}) {
     const photos = {};
     let dirty = false;
     fm.addEventListener('input', () => { dirty = true; });
+    // Enter in a box = Save (it used to submit the page and reload it, losing what was typed)
+    fm.addEventListener('submit', e => { e.preventDefault(); bg.querySelector('[data-save]').click(); });
     fm.querySelectorAll('input[type=file]').forEach(inp => inp.addEventListener('change', async () => {
       const file = inp.files[0]; if (!file) return;
       photos[inp.name] = await shrinkPhoto(file);
