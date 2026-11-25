@@ -80,19 +80,17 @@ function hpHomeHtml() {
     ${cur ? `<button class="hp-now" data-action="hpPlan"><span class="hp-now-l">Right now</span><b>${esc(cur.ico)} ${esc(cur.title)}</b><small>${esc(cur.sub)}</small></button>` : ''}
     <div class="hp-q">How can I help you today?</div>
     ${card('scanStart', HP_ICO.scan, 'Scan a Document', 'Bills, receipts, COIs, invoices and more')}
-    ${card('spOpen', '📝', 'Scratch Pad', 'Write it all down, I’ll put each thing where it goes')}
     ${card('hpPlan', HP_ICO.plan, 'Plan My Day', 'One thing at a time, in the right order', list.length ? `<span class="hp-n">${list.length}</span>` : '')}
     ${card('hpFindOpen', HP_ICO.find, 'Find Information', 'Search company records and documents')}
     ${card('hpReports', HP_ICO.rep, 'Show My Reports', 'Spending, bills, purchases and trends')}
-    <button class="hp-park-btn" data-action="hpParkAsk">🅿 Got interrupted? Park a thought${parked ? ` <span class="hp-n">${parked}</span>` : ''}</button>
-    ${parked ? `<button class="hp-park-btn sort" data-action="spSortParked">📝 Put my ${parked} parked thought${parked > 1 ? 's' : ''} where they go</button>` : ''}`;
+    <div class="hp-hint" style="margin-top:8px">💬 Something came up? Just type it below, like “remind me to cash checks on Friday, ask the owner about the Comcast bill”. I’ll put each thing where it goes.</div>`;
 }
 function hpPlanHtml() {
   const list = helperTasks(), cur = hpCurrent(list), h = hp();
   const mins = cur && h.focusAt ? Math.floor((Date.now() - h.focusAt) / 60000) : 0;
   const total = list.length + (hp().doneToday?.[today()] || 0);
   const done = hp().doneToday?.[today()] || 0;
-  if (!cur) return `${hpBack()}<div class="hp-allclear">🎉<b>All caught up!</b><small>Nothing urgent left. Take a breath, or pick something from the menu.</small></div>${hpParkedHtml()}`;
+  if (!cur) return `${hpBack()}<div class="hp-allclear">🎉<b>All caught up!</b><small>Nothing urgent left. Take a breath, or pick something from the menu.</small></div>`;
   const next = list.filter(x => x.id !== cur.id).slice(0, 5);
   return `${hpBack()}
     <div class="hp-prog"><span>Right now · ${done + 1} of ${total}</span><div class="hp-bar"><div style="width:${total ? done / total * 100 : 0}%"></div></div></div>
@@ -106,9 +104,9 @@ function hpPlanHtml() {
       </div>
       <button class="hp-link" data-action="hpGo">Open it ›</button>
     </div>
-    ${mins >= HP_NUDGE_MIN ? `<div class="hp-nudge">⏱ ${mins} minutes on this one. Still on it, or did something pull you away? <button class="hp-link" data-action="hpStill">Still on it</button> · <button class="hp-link" data-action="hpParkAsk">Park the interruption</button></div>` : ''}
+    ${mins >= HP_NUDGE_MIN ? `<div class="hp-nudge">⏱ ${mins} minutes on this one. Still on it, or did something pull you away? <button class="hp-link" data-action="hpStill">Still on it</button> · <button class="hp-link" data-action="hpTypeIt">Type what came up</button></div>` : ''}
     ${next.length ? `<div class="hp-h">Next up</div>${next.map((x, i) => `<div class="hp-next ${x.later ? 'later' : ''}"><span>${i + 2}.</span>${esc(x.title)}${x.later ? ' <small>(later)</small>' : ''}</div>`).join('')}${list.length > 6 ? `<div class="hp-next muted">+ ${list.length - 6} more</div>` : ''}` : ''}
-    ${hpParkedHtml()}`;
+`;
 }
 function hpParkedHtml() {
   const p = hp().parked;
@@ -184,7 +182,7 @@ function hpAnswer(text) {
   if (/owner|approv/.test(n)) { const a = pendingApprovals(); return a.length ? `${a.length} waiting on the owner:<br>${a.map(x => `• ${esc(x.title)} · ${daysAgo(x.askedAt)}`).join('<br>')}` : 'Nothing is waiting on the owner.'; }
   const res = searchAll(text.replace(/^(where is|find|search( for)?|look up|show me)\s+/i, ''));
   if (res.length) { hpLastRes = res; return `Here's what I found:<br>${res.slice(0, 6).map((r, i) => `<button class="hp-res" data-action="hpPickChat" data-i="${i}"><b>${esc(r.t)}</b><small>${esc(r.w)}</small></button>`).join('')}`; }
-  return `I can't answer that one yet. Once the CRM is online the real AI will help with questions like this.<br><small>Try: "what should I do now", "bills this week", "budget", "park: call the insurance agent"</small>`;
+  return `I can't answer that one yet. Once the CRM is online the real AI will help with questions like this.<br><small>Try: "what should I do now", "bills this week", "budget", or tell me something to put away: "remind me to call the agent Friday"</small>`;
 }
 let hpLastRes = [];
 function hpPark(text) { hp().parked.push({ id: uid(), text, at: Date.now() }); saveDb(); }
@@ -218,11 +216,12 @@ Object.assign(actions, {
   },
   hpStuck: async () => {
     const c = hpCurrent(); if (!c) return;
-    const r = await ask('Stuck on: ' + c.title, `<div style="background:#fdf2f4;border-radius:10px;padding:10px">💡 ${esc(c.help || 'Break it into the very first small step and do only that.')}</div><div class="small muted" style="margin-top:8px">Still stuck? Ask the owner, or park it and move on so you don't lose the whole morning.</div>`,
-      [{ label: 'Close', value: null }, { label: '🅿 Park it', value: 'park' }, { label: 'Ask the owner', cls: 'pri', value: 'owner' }]);
-    if (r === 'park') { hpPark('Stuck: ' + c.title); actions.hpNotNow(); }
+    const r = await ask('Stuck on: ' + c.title, `<div style="background:#fdf2f4;border-radius:10px;padding:10px">💡 ${esc(c.help || 'Break it into the very first small step and do only that.')}</div><div class="small muted" style="margin-top:8px">Still stuck? Ask the owner, or leave it for later today and move on so you don't lose the whole morning.</div>`,
+      [{ label: 'Close', value: null }, { label: 'Later today', value: 'later' }, { label: 'Ask the owner', cls: 'pri', value: 'owner' }]);
+    if (r === 'later') actions.hpNotNow();
     if (r === 'owner') apNew({ title: 'Help needed: ' + c.title, kind: 'Other', detail: c.sub });
   },
+  hpTypeIt: () => { const i = document.getElementById('hpInput'); i?.focus(); toast('Type what came up, I’ll put it where it goes'); },
   hpParkAsk: async () => {
     const v = await form('🅿 Park a thought', [{ name: 'text', label: 'What came up?', required: true, hint: 'It stays here until you deal with it. Then go back to your task.' }], {}, { saveLabel: 'Park it' });
     if (!v) return;

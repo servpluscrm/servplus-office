@@ -110,13 +110,12 @@ For each pick dest:
 - "shop": something to buy / order for the shop or trucks (text = the item only, amount = price each if given).
 - "owner": something to ask the owner / needs the owner's approval. amount if given.
 - "renewal": insurance, license, registration, certificate expiring / renewing. date = when it expires.
-- "park": an idea or thought for later, not a task yet.
 - "": you can't tell where it goes. Set sure false.
 Days: turn "friday", "next tue", "12/3", "dec 15", "tomorrow" into YYYY-MM-DD from TODAY (a weekday = the next one, today counts).
 sure = false when you are guessing. amount = a number, no $. Never invent amounts, dates or vendors.`;
     const SORT_SCHEMA = { type: "object", additionalProperties: false, required: ["items"], properties: { items: { type: "array", items: { type: "object", additionalProperties: false,
       required: ["text", "dest", "date", "amount", "vendor", "sure"],
-      properties: { text: { type: "string" }, dest: { type: "string", enum: ["cal", "today", "bill", "shop", "owner", "renewal", "park", ""] }, date: { type: "string" }, amount: { type: ["number", "null"] }, vendor: { type: "string" }, sure: { type: "boolean" } } } } } };
+      properties: { text: { type: "string" }, dest: { type: "string", enum: ["cal", "today", "bill", "shop", "owner", "renewal", ""] }, date: { type: "string" }, amount: { type: ["number", "null"] }, vendor: { type: "string" }, sure: { type: "boolean" } } } } } };
     try {
       const client = new Anthropic({ apiKey: key });
       const res = await client.messages.create({

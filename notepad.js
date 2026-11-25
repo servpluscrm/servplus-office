@@ -11,8 +11,7 @@ const SP_DEST = {
   bill:    { ico: '🧾', label: 'Bill to pay' },
   shop:    { ico: '🛒', label: 'Shop purchase request' },
   owner:   { ico: '👤', label: 'Ask the owner' },
-  renewal: { ico: '🛡️', label: 'Renewal / expiring' },
-  park:    { ico: '🅿', label: 'Park it for later' }
+  renewal: { ico: '🛡️', label: 'Renewal / expiring' }
 };
 const SP_MONEY_RE = /\$\s?(\d[\d,]*(\.\d{1,2})?)|\b(\d[\d,]*(\.\d{2})?)\s?(dollars|bucks)\b/i;
 
@@ -62,7 +61,7 @@ function spGuess(raw) {
   else if (/^(call|email|text|send|follow up|follow-up|check|file|print|update|schedule|book|pick up|drop off|mail|reply|look into|find|clean|wash|fill|sign|scan|enter|do)\b/.test(norm(text))) it.dest = 'today';
   else { it.dest = ''; it.sure = false; }
   if (it.dest === 'cal' && date === today()) it.dest = 'today';
-  if (/^\s*park\b/i.test(raw) && (!it.dest || it.dest === 'today')) { it.dest = 'park'; it.sure = true; }
+  if (/^\s*park\b/i.test(raw) && (!it.dest || it.dest === 'today')) { it.dest = 'today'; it.sure = true; }
   return it;
 }
 function spSortLocal(text) { return spSplit(text).map(spGuess); }
@@ -160,7 +159,7 @@ document.addEventListener('input', e => {
 document.addEventListener('click', async e => {
   const m = spChatMsg(e.target); if (!m?.sp) return;
   if (e.target.closest('[data-spc-cancel]')) { m.sp.cancel = true; return drawHelperBody(); }
-  if (e.target.closest('[data-spc-file]')) { const done = await spFileItems(m.sp.items); if (done) { m.sp.done = done; render(); } }
+  if (e.target.closest('[data-spc-file]')) { const done = await spFileItems(m.sp.items, m.sp.parkedIds || []); if (done) { m.sp.done = done; render(); } }
 });
 
 let spDraft = '';   // what she wrote, kept while the CRM is open
@@ -268,3 +267,18 @@ Object.assign(actions, {
   // Her parked thoughts go through the scratch pad, so "wash the cars on thursday" lands on Thursday.
   spSortParked: () => { const p = hp().parked; if (!p.length) return toast('Nothing parked'); spOpen({ text: p.map(x => x.text).join('\n'), parkedIds: p.map(x => x.id), items: p.flatMap(x => spSplit(x.text).map(s => ({ ...spGuess(s), from: x.id }))) }); }
 });
+
+// Parked thoughts are gone (owner 2026-11-25: "we don't need her to park her thought anymore, the AI should put her
+// thought in the right places"). Any left from before show ONCE per visit in the chat, sorted, so she can file them.
+let spParkedShown = false;
+const spDrawHelper0 = drawHelper;
+drawHelper = function () {
+  const p = db && hp().parked;
+  if (p?.length && !spParkedShown) {
+    spParkedShown = true;
+    hpChat.push({ who: 'ai', html: `You still had <b>${p.length}</b> thing${p.length > 1 ? 's' : ''} saved from before. Here’s where I’d put ${p.length > 1 ? 'them' : 'it'}:` },
+      { who: 'ai', sp: { items: p.flatMap(x => spSplit(x.text).map(s => ({ ...spGuess(s), from: x.id, on: true }))), parkedIds: p.map(x => x.id) } });
+    hpView = 'chat';
+  }
+  return spDrawHelper0.apply(this, arguments);
+};
