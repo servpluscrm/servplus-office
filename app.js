@@ -785,7 +785,11 @@ views.soon = {
 // ---------- Search ----------
 function searchAll(q) {
   const k = norm(q); if (k.length < 2) return [];
-  const hit = (...xs) => norm(xs.join(' ')).includes(k);
+  // every word must be there; small words like "the" / "where is" don't count
+  const STOP = ['the', 'a', 'an', 'is', 'where', 'whats', 'what', 'find', 'for', 'of', 'my', 'our', 'show', 'me', 'look', 'up', 'search'];
+  const words = k.split(' ').filter(w => w.length > 1 && !STOP.includes(w));
+  if (!words.length) return [];
+  const hit = (...xs) => { const s = norm(xs.join(' ')); return words.every(w => s.includes(w)); };
   const out = [];
   PAGES.forEach(([id, ico, name]) => hit(name) && out.push({ t: ico + ' ' + name, w: 'Page', go: '#/' + id }));
   db.purchases.forEach(p => hit(p.item, p.supplier, p.partNo, p.equipment) && out.push({ t: p.item, w: 'Purchasing · ' + PUR_STATUS[p.status].label, act: () => purOpen(p.id) }));
