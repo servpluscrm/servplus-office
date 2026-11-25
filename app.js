@@ -9,8 +9,8 @@ const chan = ('BroadcastChannel' in window) ? new BroadcastChannel('servplus-off
 
 function idb() {
   return new Promise((res, rej) => {
-    const r = indexedDB.open(DB_NAME, 1);
-    r.onupgradeneeded = () => r.result.createObjectStore('data');
+    const r = indexedDB.open(DB_NAME, 2);
+    r.onupgradeneeded = () => { const d = r.result; if (!d.objectStoreNames.contains('data')) d.createObjectStore('data'); if (!d.objectStoreNames.contains('files')) d.createObjectStore('files'); };
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);
   });
@@ -82,6 +82,8 @@ function migrate() {
   db.timeOff ||= [];
   db.renewals ||= [];
   db.workdayDays ||= {};
+  db.receipts ||= [];
+  db.docs ||= [];
 }
 
 // ---------- Helpers ----------
@@ -219,6 +221,7 @@ function shrinkPhoto(file) {
 // ---------- Menu ----------
 const PAGES = [
   ['dashboard', '🏠', 'Dashboard'],
+  ['scan', '📄', 'Smart Scan'],
   ['workday', '☑️', 'My Workday'],
   ['requests', '🙋', 'Employee Requests'],
   ['purchasing', '🛒', 'Purchasing'],

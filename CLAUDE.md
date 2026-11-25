@@ -20,3 +20,11 @@ The office manager's CRM (bills, shop purchasing, equipment, owner approvals, re
 - Shop & Equipment: machines with condition, counts per type, parts ordered per machine.
 - Insurance & Licenses renewals, Calendar & Coverage (time off + backups), Management (budget, everyday workday list, backup download).
 - Not built yet ("Coming next" pages): Employee Requests, Employees, Company Stats (spending stat formula), Vehicles, Resources, Meetings, Help.
+
+## 📄 Smart Scan (scan.js, 2026-11-25)
+- "📄 Scan anything" (top bar, Smart Scan page, or drop files anywhere): pictures / PDFs, several at once. The AI says what it is; a check screen shows the document on the left and the details + "Suggested actions" ticks on the right; Confirm & File makes: bill (+ optional owner approval when ≥ $300, her personal comfort level), shop receipt items (received, count in this week's budget), jobsite receipt (`db.receipts`, for stats), renewal / COI / DMV (`db.renewals`), order (matches an open purchase → ordered + delivery date), payment (matches an unpaid bill → paid). Duplicate warning (same bill / same file). Original always kept: IndexedDB store `files` (db v2), list `db.docs`, renamed "Bill - Vendor - MM.DD.YY.ext".
+- AI = Edge Function `office-assistant` mode `scan` (Haiku, reads the image / PDF, structured JSON; monthly cap in `office_private`). Until the CRM is online (`window.officeCloud`) answers are PRETEND, guessed from the file name (`scanPretend`), shown with a 🧪 note.
+- Setup later (all together): own Supabase project, run supabase/schema.sql, secret ANTHROPIC_API_KEY, deploy office-assistant, logins for the owner + office manager, hosting.
+
+## ✨ Side helper (next)
+Only for the owner + office manager. Main job: keep her on track (she gets scattered): one thing at a time, park interruptions, nudges. Mock-ups shown 2026-11-25 (Option 1 focus coach / Option 2 chat); waiting for the pick.
