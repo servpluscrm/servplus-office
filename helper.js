@@ -80,10 +80,12 @@ function hpHomeHtml() {
     ${cur ? `<button class="hp-now" data-action="hpPlan"><span class="hp-now-l">Right now</span><b>${esc(cur.ico)} ${esc(cur.title)}</b><small>${esc(cur.sub)}</small></button>` : ''}
     <div class="hp-q">How can I help you today?</div>
     ${card('scanStart', HP_ICO.scan, 'Scan a Document', 'Bills, receipts, COIs, invoices and more')}
+    ${card('spOpen', '📝', 'Scratch Pad', 'Write it all down, I’ll put each thing where it goes')}
     ${card('hpPlan', HP_ICO.plan, 'Plan My Day', 'One thing at a time, in the right order', list.length ? `<span class="hp-n">${list.length}</span>` : '')}
     ${card('hpFindOpen', HP_ICO.find, 'Find Information', 'Search company records and documents')}
     ${card('hpReports', HP_ICO.rep, 'Show My Reports', 'Spending, bills, purchases and trends')}
-    <button class="hp-park-btn" data-action="hpParkAsk">🅿 Got interrupted? Park a thought${parked ? ` <span class="hp-n">${parked}</span>` : ''}</button>`;
+    <button class="hp-park-btn" data-action="hpParkAsk">🅿 Got interrupted? Park a thought${parked ? ` <span class="hp-n">${parked}</span>` : ''}</button>
+    ${parked ? `<button class="hp-park-btn sort" data-action="spSortParked">📝 Put my ${parked} parked thought${parked > 1 ? 's' : ''} where they go</button>` : ''}`;
 }
 function hpPlanHtml() {
   const list = helperTasks(), cur = hpCurrent(list), h = hp();
@@ -112,6 +114,7 @@ function hpParkedHtml() {
   const p = hp().parked;
   return `<div class="hp-h">🅿 Parked thoughts ${p.length ? `(${p.length})` : ''}</div>
     ${p.map(x => `<div class="hp-parked"><span>${esc(x.text)}</span><small>${fmtWhen(x.at)}</small><button class="hp-mini" data-action="hpParkTask" data-id="${x.id}" title="Add to today">＋ Today</button><button class="hp-mini" data-action="hpParkDel" data-id="${x.id}" title="Done / remove">✓</button></div>`).join('') || '<div class="hp-hint">When something pulls you away, park it here so it isn’t lost, then come back to your task.</div>'}
+    ${p.length ? `<button class="hp-park-btn sort" data-action="spSortParked">📝 Put these where they go (calendar, bills…)</button>` : ''}
     <button class="hp-park-btn" data-action="hpParkAsk">🅿 Park a thought</button>`;
 }
 function hpFindHtml() {
@@ -155,6 +158,13 @@ function hpAskText() {
   const text = inp.value.trim(); if (!text) return inp.focus();
   if (hpView === 'find') { const r = searchAll(text)[0]; if (r) { inp.value = ''; hpFind = ''; hpPickRes(r); } return; }
   inp.value = '';
+  // Notes (not questions) go to the scratch pad, which sorts them into place and asks first (owner 2026-11-25).
+  const question = /\?\s*$|^(what|where|whats|how|when|who|which|why|is|are|do|does|can|could|should|show|find|search|look up|budget|bills? this week)\b/i.test(text);
+  if (!question && (/\n/.test(text) || HP_PARK_RE.test(text) || calParse(text) || spSortLocal(text).some(x => x.dest))) {
+    hpChat.push({ who: 'me', html: esc(text) }, { who: 'ai', html: '📝 Sorting that into place… check the window and press File.' });
+    hpView = 'chat'; drawHelperBody();
+    return spOpen({ text, sortNow: true });
+  }
   hpChat.push({ who: 'me', html: esc(text) });
   hpChat.push({ who: 'ai', html: hpAnswer(text) });
   hpView = 'chat'; drawHelperBody();

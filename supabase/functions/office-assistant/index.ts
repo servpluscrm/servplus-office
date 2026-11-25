@@ -97,6 +97,47 @@ Deno.serve(async (req) => {
   const spent = await usageNow();
   if (spent.cost >= spent.cap) return reply({ error: `The assistant reached this month's limit ($${spent.cap}). It starts again on the 1st.`, capped: true }, 429);
 
+  // mode "sort" = 📝 Scratch pad (notepad.js): her brain dump → separate items, each with where it goes. Nothing is saved here.
+  if (body.mode === "sort") {
+    const text = String(body.text || "").slice(0, 8000);
+    if (!text.trim()) return reply({ error: "Nothing written" }, 400);
+    const SORT_SYSTEM = `You sort an office manager's quick notes for a water damage restoration company (SERVPLUS).
+Split the notes into separate things to do / remember (one per item; keep her meaning, clean up spelling, short and plain).
+For each pick dest:
+- "cal": something on a specific day (an appointment, a reminder for a day). date required.
+- "today": a task with no day, to do today (call, email, send, file…). Also a day that is TODAY.
+- "bill": a bill to pay. vendor, amount and date (due) when given.
+- "shop": something to buy / order for the shop or trucks (text = the item only, amount = price each if given).
+- "owner": something to ask the owner / needs the owner's approval. amount if given.
+- "renewal": insurance, license, registration, certificate expiring / renewing. date = when it expires.
+- "park": an idea or thought for later, not a task yet.
+- "": you can't tell where it goes. Set sure false.
+Days: turn "friday", "next tue", "12/3", "dec 15", "tomorrow" into YYYY-MM-DD from TODAY (a weekday = the next one, today counts).
+sure = false when you are guessing. amount = a number, no $. Never invent amounts, dates or vendors.`;
+    const SORT_SCHEMA = { type: "object", additionalProperties: false, required: ["items"], properties: { items: { type: "array", items: { type: "object", additionalProperties: false,
+      required: ["text", "dest", "date", "amount", "vendor", "sure"],
+      properties: { text: { type: "string" }, dest: { type: "string", enum: ["cal", "today", "bill", "shop", "owner", "renewal", "park", ""] }, date: { type: "string" }, amount: { type: ["number", "null"] }, vendor: { type: "string" }, sure: { type: "boolean" } } } } } };
+    try {
+      const client = new Anthropic({ apiKey: key });
+      const res = await client.messages.create({
+        model: MODEL, max_tokens: 3000,
+        output_config: { format: { type: "json_schema", schema: SORT_SCHEMA } },
+        system: [{ type: "text", text: SORT_SYSTEM, cache_control: { type: "ephemeral" } }],
+        messages: [{ role: "user", content: `TODAY: ${String(body.today || "").slice(0, 10)}\nNOTES:\n${text}` }],
+      });
+      const after = await usageNow();
+      await putRow("ai_usage", { month: after.month, cost: after.cost + costOf(res.usage, MODEL), calls: after.calls + 1 });
+      const out = res.content.find((b) => b.type === "text");
+      if (!out || out.type !== "text") return reply({ error: "No answer" }, 502);
+      const j = JSON.parse(out.text);
+      j.items = (j.items || []).map((x: any) => ({ ...x, amount: x.amount ?? "" }));
+      return reply({ ...j, cost: costOf(res.usage, MODEL) });
+    } catch (err) {
+      if (err instanceof Anthropic.APIError) return reply({ error: `Assistant error ${err.status}` }, 502);
+      return reply({ error: "Assistant error" }, 500);
+    }
+  }
+
   if (body.mode !== "scan") return reply({ error: "Unknown mode" }, 400);
   const mediaType = String(body.mediaType || "");
   const data = String(body.data || "");

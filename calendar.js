@@ -70,6 +70,51 @@ function monthHtml() {
     <div class="small muted" style="margin-top:8px">Click a day to see everything on it or add something. Weekly things (Friday purchasing, Sunday dispatch) show on the week above.</div></div>`;
 }
 
+// Reads a day out of plain words (2026-11-25, owner: things typed to the AI must land on the calendar).
+// "wash the cars on thursday" → { date: Thu, text: 'Wash the cars' }. No day found = null.
+const CAL_MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+const CAL_DAYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+function calParse(raw) {
+  let s = ' ' + raw.trim() + ' ', date = '';
+  const t = today(), cut = re => { s = s.replace(re, ' '); };
+  let m;
+  if ((m = s.match(/\s(on\s+)?(the\s+)?(\d{1,2})\/(\d{1,2})(\/(\d{2,4}))?\s/i))) {
+    let y = m[6] ? +m[6] : dayOf(t).getFullYear(); if (y < 100) y += 2000;
+    const d = new Date(y, +m[3] - 1, +m[4]); if (!m[6] && ymd(d) < t) d.setFullYear(y + 1);
+    date = ymd(d); cut(m[0]);
+  } else if ((m = s.match(new RegExp(`\\s(on\\s+)?(${CAL_MONTHS.join('|')})[a-z]*\\.?\\s+(\\d{1,2})(st|nd|rd|th)?(,?\\s+(\\d{4}))?\\s`, 'i')))) {
+    const y = m[6] ? +m[6] : dayOf(t).getFullYear();
+    const d = new Date(y, CAL_MONTHS.indexOf(m[2].toLowerCase().slice(0, 3)), +m[3]); if (!m[6] && ymd(d) < t) d.setFullYear(y + 1);
+    date = ymd(d); cut(m[0]);
+  } else if ((m = s.match(/\s(for\s+|on\s+)?(today|tonight|this evening)\s/i))) { date = t; cut(m[0]); }
+  else if ((m = s.match(/\s(for\s+|on\s+)?(tomorrow|tmrw)\s/i))) { date = addDays(t, 1); cut(m[0]); }
+  else if ((m = s.match(/\s(on\s+|this\s+|next\s+|for\s+)?(monday|mon|tuesday|tues|tue|wednesday|wed|thursday|thurs|thur|thu|friday|fri|saturday|sat|sunday|sun)'?s?[.,]?\s/i))) {
+    const want = CAL_DAYS.findIndex(d => d.startsWith(m[2].toLowerCase().slice(0, 3)));
+    let add = (want - dayOf(t).getDay() + 7) % 7;
+    if (/next/i.test(m[1] || '') && add < 7) add += add === 0 ? 7 : 7;
+    date = addDays(t, add); cut(m[0]);
+  }
+  if (!date) return null;
+  let text = s.replace(/\s+/g, ' ').trim()
+    .replace(/^(please\s+)?(park|remember|remind me|don'?t forget|note|add|put|schedule|set)\b[:\s,-]*/i, '')
+    .replace(/\b(to|on|in)\s+(the\s+|my\s+)?(calendar|schedule)\b/gi, '')
+    .replace(/^(to|that i need to|i need to|i have to|need to)\s+/i, '')
+    .replace(/[\s,.-]+$/, '').replace(/\s+(by|before|until|due|on|for|this|next|at)$/i, '').trim();
+  if (!text) return null;
+  return { date, text: text[0].toUpperCase() + text.slice(1) };
+}
+// Asks first, then puts it on the calendar. Returns true when added.
+async function calAddParsed(p) {
+  const v = await form('📅 Put this on the calendar?', [
+    { name: 'text', label: 'What', required: true },
+    { name: 'date', label: 'Day', type: 'date', required: true }
+  ], p, { saveLabel: '📅 Add to calendar' });
+  if (!v) return false;
+  db.events ||= []; db.events.push({ id: uid(), text: v.text, date: v.date, at: Date.now() });
+  await saveDb(); render(); toast('📅 On the calendar · ' + fmtDay(v.date, true));
+  return v;
+}
+
 // Put them under the checklist on My Workday
 const calWorkday0 = views.workday.html;
 views.workday.html = function () { return calWorkday0.apply(this, arguments) + `<div style="margin-top:16px">${weekHtml()}</div>${monthHtml()}`; };

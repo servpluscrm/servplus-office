@@ -344,3 +344,23 @@ div.cal-it { cursor: default; }
   .cal-cell .cal-more { display: none; }
   .cal-cell:has(.cal-it)::after { content: "•"; color: var(--brand); font-size: 18px; line-height: 1; }
 }
+
+/* 📝 Scratch pad (notepad.js) */
+.sp-modal { width: min(760px, 96vw); max-height: 92vh; display: flex; flex-direction: column; }
+.sp-body { padding: 14px 18px; overflow-y: auto; flex: 1; }
+.sp-tip { background: #fdf2f4; color: #7a2840; border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-bottom: 10px; }
+.sp-text { width: 100%; min-height: 300px; font: inherit; font-size: 15px; line-height: 1.55; padding: 12px; border: 1px solid var(--line); border-radius: 10px; resize: vertical; box-sizing: border-box; }
+.sp-sum { margin: 2px 0 10px; }
+.sp-list { display: flex; flex-direction: column; gap: 8px; }
+.sp-row { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: #fff; }
+.sp-row > input[type=checkbox] { width: 20px; height: 20px; margin-top: 8px; flex: none; }
+.sp-row.off { opacity: .5; }
+.sp-row.ask { border-color: #f0b429; background: #fffaeb; }
+.sp-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.sp-t { font: inherit; font-weight: 600; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; width: 100%; box-sizing: border-box; }
+.sp-where { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.sp-where select { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.sp-where label { font-size: 11px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
+.sp-where label input { font: inherit; font-size: 14px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 8px; width: 140px; }
+.sp-q { font-size: 13px; color: #8a5a00; }
+.hp-park-btn.sort { background: #fdf2f4; border-color: #f3c3d0; color: #b83b5e; }
