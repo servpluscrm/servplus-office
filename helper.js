@@ -51,7 +51,7 @@ function hpShell() {
     </div>
     <div class="hp-body" id="hpBody"></div>
     <form class="hp-ask" id="hpAsk" autocomplete="off">
-      <input id="hpInput" placeholder="Ask me anything…" data-no-draft>
+      <input id="hpInput" placeholder="Type anything: “remind me to… on Friday”, “ask the owner…”" data-no-draft>
       <button type="button" class="hp-mic" data-action="hpMic" title="Talk">🎤</button>
       <button type="submit" class="hp-send" title="Send">➤</button>
     </form>`;
@@ -148,7 +148,7 @@ function hpRepeats() {
   return r.map(x => `<div class="hp-next">🔁 ${esc(x.item)} <small>· ${x.n}× in 30 days</small></div>`).join('') || '<div class="hp-hint">No repeat orders.</div>';
 }
 function hpChatHtml() {
-  return `${hpBack()}${hpChat.map(m => `<div class="hp-msg ${m.who}">${m.html}</div>`).join('')}`;
+  return `${hpBack()}${hpChat.map((m, i) => m.sp ? `<div class="hp-msg ai sp" data-spm="${i}">${spChatHtml(m, i)}</div>` : `<div class="hp-msg ${m.who}">${m.html}</div>`).join('')}`;
 }
 
 // ---------- Typing in the box ----------
@@ -160,10 +160,9 @@ function hpAskText() {
   inp.value = '';
   // Notes (not questions) go to the scratch pad, which sorts them into place and asks first (owner 2026-11-25).
   const question = /\?\s*$|^(what|where|whats|how|when|who|which|why|is|are|do|does|can|could|should|show|find|search|look up|budget|bills? this week)\b/i.test(text);
-  if (!question && (/\n/.test(text) || HP_PARK_RE.test(text) || calParse(text) || spSortLocal(text).some(x => x.dest))) {
-    hpChat.push({ who: 'me', html: esc(text) }, { who: 'ai', html: '📝 Sorting that into place… check the window and press File.' });
-    hpView = 'chat'; drawHelperBody();
-    return spOpen({ text, sortNow: true });
+  // Anything that isn't a question is a note to put away (it asks where when it can't tell).
+  if (!question && text.split(/\s+/).length >= 2) {
+    return spChatAdd(text);
   }
   hpChat.push({ who: 'me', html: esc(text) });
   hpChat.push({ who: 'ai', html: hpAnswer(text) });

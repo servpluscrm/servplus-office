@@ -17,11 +17,21 @@ const SP_DEST = {
 const SP_MONEY_RE = /\$\s?(\d[\d,]*(\.\d{1,2})?)|\b(\d[\d,]*(\.\d{2})?)\s?(dollars|bucks)\b/i;
 
 // Cut a brain dump into separate items: lines, bullets, ";", sentences, "also".
+// Run-on typing ("remind me to cash checks on friday ask the owner about comcast bill") is also cut before words that
+// start a new thing (remind me, ask the owner, pay the, order…); a piece left hanging ("remind me to") joins the next one.
+const SP_STARTERS = /\s*,?\s+(?:and\s+|then\s+)?(?=(?:remind me|don'?t forget|remember to|ask (?:the )?(?:owner|boss)|check with (?:the )?(?:owner|boss)|tell (?:the )?(?:owner|boss)|pay (?:the )?|order (?:more |some )?|buy (?:more |some )?|park:)\b)/i;
 function spSplit(text) {
-  return text.split(/\n+/)
+  const parts = text.split(/\n+/)
     .flatMap(l => l.split(/;|(?<=[a-z0-9)])[.!]\s+(?=[A-Za-z])|\s+(?:and\s+)?also\s+/i))
-    .map(s => s.replace(/^\s*([-*•·]|\d+[.)])\s*/, '').replace(/[.!]+$/, '').trim())
+    .flatMap(l => l.split(SP_STARTERS))
+    .map(s => s.replace(/^\s*([-*•·]|\d+[.)])\s*/, '').replace(/[.!,]+$/, '').trim())
     .filter(s => s.length > 1);
+  const out = [];
+  for (const p of parts) {
+    if (out.length && /\b(to|me|about|and|the|for|with)$/i.test(out[out.length - 1])) out[out.length - 1] += ' ' + p;
+    else out.push(p);
+  }
+  return out;
 }
 function spCap(s) { s = s.trim(); return s ? s[0].toUpperCase() + s.slice(1) : s; }
 function spClean(s) {
@@ -66,6 +76,92 @@ async function spSort(text) {
   }
   return { items: spSortLocal(text), ai: false };
 }
+
+// Checks, asks once ("File N items?"), then puts each ticked item in its place. Returns the filed list, or null.
+function spLine(x) { return `${SP_DEST[x.dest].ico} <b>${esc(x.text)}</b> → ${SP_DEST[x.dest].label}${x.date && x.dest !== 'today' && x.dest !== 'shop' && x.dest !== 'owner' && x.dest !== 'park' ? ' · ' + fmtDay(x.date, true) : ''}${x.amount !== '' && x.amount != null ? ' · ' + money(+x.amount) : ''}`; }
+async function spFileItems(items, parkedIds = []) {
+  const list = items.filter(x => x.on);
+  if (!list.length) { toast('Nothing is ticked'); return null; }
+  for (const x of list) {
+    if (!x.text.trim()) { toast('One item has no words'); return null; }
+    if (!x.dest) { toast(`Pick where “${x.text}” goes, or untick it`); return null; }
+    if (['cal', 'renewal'].includes(x.dest) && !x.date) { toast(`Pick the day for “${x.text}”`); return null; }
+    if (x.dest === 'bill' && (!x.date || x.amount === '' || !x.vendor)) { toast(`“${x.text}” needs who, how much and the due date to be a bill`); return null; }
+  }
+  if (!(await sure(`File ${list.length} item${list.length === 1 ? '' : 's'}?`, list.map(spLine), 'Yes, file them'))) return null;
+  const now = Date.now(), wd = workdayToday().d;
+  db.events ||= [];
+  for (const x of list) {
+    const amt = x.amount === '' ? '' : +x.amount;
+    if (x.dest === 'cal') db.events.push({ id: uid(), text: x.text, date: x.date, at: now, via: 'scratch pad' });
+    if (x.dest === 'today') wd.extra.push({ id: uid(), text: x.text });
+    if (x.dest === 'bill') db.bills.push({ id: uid(), vendor: x.vendor, what: x.text, amount: amt, due: x.date, repeat: 'none', note: 'From the scratch pad', at: now });
+    if (x.dest === 'shop') db.purchases.push({ id: uid(), item: x.text, qty: 1, price: amt, by: 'Office Manager', note: 'From the scratch pad', status: 'pending', at: now });
+    if (x.dest === 'owner') db.approvals.push({ id: uid(), title: x.text, kind: 'Other', amount: amt, detail: 'From the scratch pad', purchaseId: '', billId: '', status: 'pending', askedAt: now });
+    if (x.dest === 'renewal') db.renewals.push({ id: uid(), name: x.text, expires: x.date, note: 'From the scratch pad' });
+    if (x.dest === 'park') hp().parked.push({ id: uid(), text: x.text, at: now });
+  }
+  // Parked thoughts that were sorted leave the parked list (only when every piece of them was filed)
+  if (parkedIds.length) { const h = hp(); h.parked = h.parked.filter(p => !parkedIds.includes(p.id) || items.some(x => x.from === p.id && !x.on)); }
+  await saveDb();
+  toast(`✓ Filed ${list.length} item${list.length === 1 ? '' : 's'} ${[...new Set(list.map(x => SP_DEST[x.dest].ico))].join(' ')}`);
+  return list;
+}
+
+// ---------- The helper's chat IS the scratch pad (owner 2026-11-25: "remind me to cash checks on friday ask the owner
+// about comcast bill… then it will go into the right places after asking her"). The sorted items show as an answer in
+// the chat: each with a tick, its words, where it goes (+ day / amount); "✓ File these" asks once, then files. ----------
+function spChatHtml(m, mi) {
+  const s = m.sp;
+  if (s.sorting) return `📝 Sorting that out…`;
+  if (s.done) return `✓ Done. I put ${s.done.length === 1 ? 'it' : 'them'} away:<div class="spc-done">${s.done.map(x => `<div>${spLine(x)}</div>`).join('')}</div>`;
+  if (s.cancel) return `<span class="muted">Okay, I didn’t save ${s.items.length === 1 ? 'it' : 'those'}.</span>`;
+  const n = s.items.filter(x => x.on).length;
+  const ask = s.items.filter(x => x.on && (!x.dest || !x.sure)).length;
+  return `${s.items.length === 1 ? 'Here’s where I’d put it.' : `I found <b>${s.items.length}</b> things. Here’s where I’d put them.`}${ask ? ` <b>${ask === 1 ? 'One needs' : ask + ' need'} your help</b> (yellow).` : ''}
+    <div class="spc-list">${s.items.map((x, i) => {
+      const d = x.dest, extra = [];
+      if (['cal', 'bill', 'renewal'].includes(d)) extra.push(`<input type="date" data-spc-f="date" value="${esc(x.date)}" title="${d === 'bill' ? 'Due' : d === 'renewal' ? 'Expires' : 'Day'}">`);
+      if (d === 'bill') extra.push(`<input data-spc-f="vendor" value="${esc(x.vendor)}" placeholder="Who to pay">`);
+      if (['bill', 'shop', 'owner'].includes(d)) extra.push(`<input data-spc-f="amount" inputmode="decimal" value="${x.amount === '' || x.amount == null ? '' : esc(String(x.amount))}" placeholder="$ amount">`);
+      return `<div class="spc-row ${x.on ? '' : 'off'} ${x.on && (!d || !x.sure) ? 'ask' : ''}" data-i="${i}">
+        <label class="spc-top"><input type="checkbox" data-spc-on ${x.on ? 'checked' : ''}><input class="spc-t" data-spc-f="text" value="${esc(x.text)}"></label>
+        <select data-spc-f="dest"><option value="">❓ Where should this go?</option>${Object.entries(SP_DEST).map(([k, v]) => `<option value="${k}" ${k === d ? 'selected' : ''}>${v.ico} ${v.label}</option>`).join('')}</select>
+        ${extra.length ? `<div class="spc-extra">${extra.join('')}</div>` : ''}
+        ${x.on && !d ? '<div class="spc-q">Where should this go?</div>' : x.on && !x.sure ? '<div class="spc-q">I’m not sure on this one, check it.</div>' : ''}
+      </div>`;
+    }).join('')}</div>
+    <div class="spc-btns"><button class="spc-no" data-spc-cancel>Never mind</button><button class="spc-yes" data-spc-file ${n ? '' : 'disabled'}>✓ File ${n === 1 ? 'it' : 'these ' + n}</button></div>
+    ${s.ai ? '' : '<div class="spc-note">Sorted by simple word rules for now; the real AI sorts once the CRM is online.</div>'}`;
+}
+// She typed notes in the chat
+async function spChatAdd(text) {
+  const m = { who: 'ai', sp: { sorting: true, items: [] } };
+  hpChat.push({ who: 'me', html: esc(text) }, m);
+  hpView = 'chat'; drawHelperBody();
+  const r = await spSort(text);
+  m.sp = { items: r.items.map(x => ({ ...x, on: true })), ai: r.ai };
+  if (!m.sp.items.length) { delete m.sp; m.html = 'I couldn’t find anything to put away in that. Try “remind me to … on Friday”.'; }
+  drawHelperBody();
+}
+function spChatMsg(el) { const w = el.closest('[data-spm]'); return w ? hpChat[+w.dataset.spm] : null; }
+document.addEventListener('change', e => {
+  const m = spChatMsg(e.target), row = e.target.closest('.spc-row'); if (!m?.sp || !row) return;
+  const x = m.sp.items[+row.dataset.i];
+  if (e.target.matches('[data-spc-on]')) { x.on = e.target.checked; return drawHelperBody(); }
+  const f = e.target.dataset.spcF; if (!f) return;
+  x[f] = f === 'amount' ? (e.target.value.trim() === '' ? '' : moneyParse(e.target.value)) : e.target.value;
+  if (f === 'dest') { x.sure = true; drawHelperBody(); }
+});
+document.addEventListener('input', e => {
+  const m = spChatMsg(e.target), row = e.target.closest('.spc-row'); if (!m?.sp || !row) return;
+  const f = e.target.dataset.spcF; if (f === 'text' || f === 'vendor') m.sp.items[+row.dataset.i][f] = e.target.value;
+});
+document.addEventListener('click', async e => {
+  const m = spChatMsg(e.target); if (!m?.sp) return;
+  if (e.target.closest('[data-spc-cancel]')) { m.sp.cancel = true; return drawHelperBody(); }
+  if (e.target.closest('[data-spc-file]')) { const done = await spFileItems(m.sp.items); if (done) { m.sp.done = done; render(); } }
+});
 
 let spDraft = '';   // what she wrote, kept while the CRM is open
 // opts: { text, parkedIds } (parkedIds = parked thoughts being sorted; they leave the parked list once filed)
@@ -130,33 +226,8 @@ function spOpen(opts = {}) {
     review();
   };
   const file = async () => {
-    const list = st.items.filter(x => x.on);
-    for (const x of list) {
-      if (!x.text.trim()) return toast('One item has no words');
-      if (!x.dest) return toast(`Pick where “${x.text}” goes, or untick it`);
-      if (['cal', 'renewal'].includes(x.dest) && !x.date) return toast(`Pick the day for “${x.text}”`);
-      if (x.dest === 'bill' && (!x.date || x.amount === '' || !x.vendor)) return toast(`“${x.text}” needs a vendor, amount and due date to be a bill`);
-    }
-    const lines = list.map(x => `${SP_DEST[x.dest].ico} <b>${esc(x.text)}</b> → ${SP_DEST[x.dest].label}${x.date && x.dest !== 'today' ? ' · ' + fmtDay(x.date, true) : ''}${x.amount !== '' && x.amount != null ? ' · ' + money(+x.amount) : ''}`);
-    if (!(await sure(`File ${list.length} item${list.length === 1 ? '' : 's'}?`, lines, 'Yes, file them'))) return;
-    const now = Date.now(), wd = workdayToday().d;
-    db.events ||= [];
-    for (const x of list) {
-      const amt = x.amount === '' ? '' : +x.amount;
-      if (x.dest === 'cal') db.events.push({ id: uid(), text: x.text, date: x.date, at: now, via: 'scratch pad' });
-      if (x.dest === 'today') wd.extra.push({ id: uid(), text: x.text });
-      if (x.dest === 'bill') db.bills.push({ id: uid(), vendor: x.vendor, what: x.text, amount: amt, due: x.date, repeat: 'none', note: 'From the scratch pad', at: now });
-      if (x.dest === 'shop') db.purchases.push({ id: uid(), item: x.text, qty: 1, price: amt, by: 'Office Manager', note: 'From the scratch pad', status: 'pending', at: now });
-      if (x.dest === 'owner') db.approvals.push({ id: uid(), title: x.text, kind: 'Other', amount: amt, detail: '', purchaseId: '', billId: '', status: 'pending', askedAt: now });
-      if (x.dest === 'renewal') db.renewals.push({ id: uid(), name: x.text, expires: x.date, note: 'From the scratch pad' });
-      if (x.dest === 'park') hp().parked.push({ id: uid(), text: x.text, at: now });
-    }
-    // Parked thoughts that were sorted leave the parked list (only when every piece of them was filed)
-    if (st.parkedIds.length) { const h = hp(); h.parked = h.parked.filter(p => !st.parkedIds.includes(p.id) || st.items.some(x => x.from === p.id && !x.on)); }
-    spDraft = '';
-    await saveDb(); bg.remove(); render();
-    const where = [...new Set(list.map(x => SP_DEST[x.dest].ico))].join(' ');
-    toast(`✓ Filed ${list.length} item${list.length === 1 ? '' : 's'} ${where}`);
+    const list = await spFileItems(st.items, st.parkedIds); if (!list) return;
+    spDraft = ''; bg.remove(); render();
   };
   bg.addEventListener('click', e => {
     const t = e.target;

@@ -364,3 +364,25 @@ div.cal-it { cursor: default; }
 .sp-where label input { font: inherit; font-size: 14px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 8px; width: 140px; }
 .sp-q { font-size: 13px; color: #8a5a00; }
 .hp-park-btn.sort { background: #fdf2f4; border-color: #f3c3d0; color: #b83b5e; }
+
+/* 📝 Scratch pad answers in the helper chat (notepad.js spChatHtml) */
+.hp-msg.ai.sp { margin-right: 0; }
+.spc-list { display: flex; flex-direction: column; gap: 7px; margin: 8px 0; }
+.spc-row { border: 1px solid #f0d5dd; border-radius: 10px; padding: 7px; background: #fff; display: flex; flex-direction: column; gap: 5px; }
+.spc-row.off { opacity: .5; }
+.spc-row.ask { border-color: #f0b429; background: #fffaeb; }
+.spc-top { display: flex; gap: 6px; align-items: center; }
+.spc-top input[type=checkbox] { width: 18px; height: 18px; flex: none; accent-color: var(--hp); }
+.spc-t { flex: 1; min-width: 0; font: inherit; font-weight: 600; font-size: 13px; border: 1px solid transparent; border-radius: 6px; padding: 3px 5px; background: transparent; }
+.spc-t:hover, .spc-t:focus { border-color: #e7c2cd; background: #fff; }
+.spc-row select, .spc-extra input { font: inherit; font-size: 12px; padding: 4px 6px; border: 1px solid #e3d3d8; border-radius: 7px; background: #fff; width: 100%; box-sizing: border-box; }
+.spc-extra { display: flex; flex-wrap: wrap; gap: 5px; }
+.spc-extra input { flex: 1 1 100px; }
+.spc-q { font-size: 12px; color: #8a5a00; font-weight: 600; }
+.spc-btns { display: flex; gap: 6px; justify-content: flex-end; }
+.spc-btns button { border: 0; border-radius: 9px; padding: 7px 12px; font-weight: 700; cursor: pointer; font: inherit; font-size: 13px; }
+.spc-no { background: #f3e8ec; color: #7a2840; }
+.spc-yes { background: var(--hp); color: #fff; }
+.spc-yes:disabled { opacity: .5; }
+.spc-note { font-size: 11px; color: #9a7a84; margin-top: 6px; }
+.spc-done { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
