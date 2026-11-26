@@ -774,7 +774,7 @@ views.management = {
 const SOON = {
   requests: ['Employee Requests', ['One inbox for "Order something", "Need a document", "Question", "Problem"', 'Pick a priority and a day to handle it, so questions wait for your focus time', 'Employees see the answer without walking to your desk']],
   employees: ['Employees', ['Which papers each person has turned in (W-4, I-9, ID, …) — no Social Security numbers', 'New hire packet sent on their first day', 'Who to contact for what']],
-  stats: ['Company Stats', ['Marketing meetings, interactions, Calls In, payroll hours, supplies', 'Spending stat: (Payroll + Supplies) ÷ Collections ÷ 0.65, with a "what can I afford" check', 'Receipt tracker for Home Depot and other suppliers']],
+  // stats: built (stats.js)
   vehicles: ['Company Vehicles', ['DMV registration dates', 'Insurance and maintenance', 'Reminders before they are due']],
   resources: ['Company Resources', ['One place to find answers: vendors, procedures, forms', 'How to request a COI (for when you are out)']],
   meetings: ['Company Meetings', ['8 AM meeting notes', 'To-dos from the meeting with who owns them, so nothing is forgotten']],

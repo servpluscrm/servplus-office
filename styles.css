@@ -533,3 +533,39 @@ body.cl-gate-on > :not(.cl-gate):not(#toast):not(script) { display: none !import
 .cl-form input { padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; }
 .cl-msg { background: #fff7e6; border: 1px solid #f5c26b; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; font-size: 13px; }
 .cl-links { margin-top: 12px; font-size: 13px; text-align: center; }
+
+/* 📊 Company Stats (stats.js) — same look as the ServPlus CRM Dashboard master card */
+.st-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.st-seg { display: inline-flex; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; }
+.st-seg button { border: 0; background: #fff; padding: 6px 12px; font: inherit; cursor: pointer; }
+.st-seg button.on { background: var(--brand); color: #fff; }
+.st-title { font-size: 15px; } .st-live { margin-left: auto; }
+.st-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.st-kpis-co { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.st-kpi { background: #e7f1fb; border-radius: 10px; padding: 10px; text-align: center; }
+.st-kpis-co .st-kpi { background: #fff8e6; }
+.st-kv { font-size: 20px; font-weight: 800; color: var(--brand-deep, #0b4f86); }
+.st-kl { font-size: 12px; color: #667085; }
+.st-kpi.st-good { background: #e3f4e8; } .st-kpi.st-good .st-kv { color: #16794a; }
+.st-kpi.st-bad { background: #fde2e2; } .st-kpi.st-bad .st-kv { color: #b42318; }
+.st-scroll { overflow-x: auto; }
+.st-grid { width: 100%; border-collapse: collapse; font-size: 13px; }
+.st-grid th, .st-grid td { padding: 5px 6px; text-align: right; border: 1px solid #fff; white-space: nowrap; }
+.st-grid th:first-child { text-align: left; background: #111; color: #fff; min-width: 92px; text-transform: uppercase; font-size: 12px; }
+.st-grid tr:first-child th { background: #111; color: #fff; text-align: center; }
+.st-grid tr:first-child th small { display: block; font-weight: 400; opacity: .75; font-size: 11px; }
+.st-grid tr:first-child th.st-today { background: var(--brand); }
+.st-grid .r-calls td, .st-grid .r-landed td { background: #dcebd5; }
+.st-grid .r-rate td { background: #fdebd0; font-weight: 700; }
+.st-grid .r-values td { background: #cfe0f5; } .st-grid .r-inv td { background: #e6d9f2; } .st-grid .r-coll td { background: #f4cccc; }
+.st-grid .r-meet td, .st-grid .r-hrs td, .st-grid .r-sup td { background: #fff3cd; }
+.st-grid td.st-today { box-shadow: inset 0 0 0 2px var(--brand); }
+.st-grid .st-tot { font-weight: 800; background: #fde4c4 !important; color: #111 !important; }
+.st-grid .st-co-gap th { background: #fff !important; color: #8a6d1f !important; text-align: left; font-size: 11px; padding-top: 10px; }
+.st-in { width: 100%; min-width: 46px; border: 1px solid transparent; background: transparent; text-align: right; font: inherit; padding: 2px 4px; border-radius: 4px; }
+.st-in:hover { border-color: #e5c66b; } .st-in:focus { border-color: var(--brand); background: #fff; outline: none; }
+.st-in::placeholder { color: #9a8f6b; }
+.st-pay { text-align: center; font-size: 18px; font-weight: 800; max-width: 140px; }
+.st-boards { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.st-board { background: #f5f8fb; border-radius: 8px; padding: 6px 10px; font-size: 13px; display: flex; gap: 8px; }
+@media (max-width: 800px) { .st-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
