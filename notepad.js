@@ -80,7 +80,7 @@ async function spSort(text) {
 
 // Checks, asks once ("File N items?"), then puts each ticked item in its place. Returns the filed list, or null.
 function spLine(x) { return `${SP_DEST[x.dest].ico} <b>${esc(x.text)}</b> → ${SP_DEST[x.dest].label}${x.date && x.dest !== 'today' && x.dest !== 'shop' && x.dest !== 'owner' && x.dest !== 'park' ? ' · ' + fmtDay(x.date, true) : ''}${x.amount !== '' && x.amount != null ? ' · ' + money(+x.amount) : ''}`; }
-async function spFileItems(items, parkedIds = []) {
+async function spFileItems(items, parkedIds = [], via = 'scratch pad', stamp = {}) {
   const list = items.filter(x => x.on);
   if (!list.length) { toast('Nothing is ticked'); return null; }
   for (const x of list) {
@@ -94,12 +94,12 @@ async function spFileItems(items, parkedIds = []) {
   db.events ||= [];
   for (const x of list) {
     const amt = x.amount === '' ? '' : +x.amount;
-    if (x.dest === 'cal') db.events.push({ id: uid(), text: x.text, date: x.date, at: now, via: 'scratch pad' });
-    if (x.dest === 'today') wd.extra.push({ id: uid(), text: x.text });
-    if (x.dest === 'bill') db.bills.push({ id: uid(), vendor: x.vendor, what: x.text, amount: amt, due: x.date, repeat: 'none', note: 'From the scratch pad', at: now });
-    if (x.dest === 'shop') db.purchases.push({ id: uid(), item: x.text, qty: 1, price: amt, by: 'Office Manager', note: 'From the scratch pad', status: 'pending', at: now });
-    if (x.dest === 'owner') db.approvals.push({ id: uid(), title: x.text, kind: 'Other', amount: amt, detail: 'From the scratch pad', purchaseId: '', billId: '', status: 'pending', askedAt: now });
-    if (x.dest === 'renewal') db.renewals.push({ id: uid(), name: x.text, expires: x.date, note: 'From the scratch pad' });
+    if (x.dest === 'cal') db.events.push({ id: uid(), text: x.text, date: x.date, at: now, via, ...stamp });
+    if (x.dest === 'today') wd.extra.push({ id: uid(), text: x.text, ...stamp });
+    if (x.dest === 'bill') db.bills.push({ id: uid(), vendor: x.vendor, what: x.text, amount: amt, due: x.date, repeat: 'none', note: `From the ${via}`, at: now, ...stamp });
+    if (x.dest === 'shop') db.purchases.push({ id: uid(), item: x.text, qty: 1, price: amt, by: 'Office Manager', note: `From the ${via}`, status: 'pending', at: now, ...stamp });
+    if (x.dest === 'owner') db.approvals.push({ id: uid(), title: x.text, kind: 'Other', amount: amt, detail: `From the ${via}`, purchaseId: '', billId: '', status: 'pending', askedAt: now, ...stamp });
+    if (x.dest === 'renewal') db.renewals.push({ id: uid(), name: x.text, expires: x.date, note: `From the ${via}`, ...stamp });
     if (x.dest === 'park') hp().parked.push({ id: uid(), text: x.text, at: now });
   }
   // Parked thoughts that were sorted leave the parked list (only when every piece of them was filed)
@@ -171,7 +171,7 @@ function spOpen(opts = {}) {
   const bg = document.createElement('div');
   bg.className = 'modal-bg sp-bg';
   bg.innerHTML = `<div class="modal sp-modal" role="dialog">
-    <div class="modal-head"><button class="modal-x" data-sp-back title="Back">‹</button><h3>📝 Scratch pad</h3><button class="modal-x" data-sp-x>✕ Close</button></div>
+    <div class="modal-head"><button class="modal-x" data-sp-back title="Back">‹</button><h3>${opts.title || '📝 Scratch pad'}</h3><button class="modal-x" data-sp-x>✕ Close</button></div>
     <div class="sp-body" data-sp-body></div>
     <div class="modal-foot" data-sp-foot></div></div>`;
   modalRoot().appendChild(bg);
@@ -179,7 +179,7 @@ function spOpen(opts = {}) {
   const body = bg.querySelector('[data-sp-body]'), foot = bg.querySelector('[data-sp-foot]');
   const close = async () => {
     const typed = st.items ? st.items.length : (bg.querySelector('[data-sp-text]')?.value || '').trim();
-    if (st.items && typed && !(await sure('Leave without filing?', ['Nothing is filed yet. What you wrote stays in the scratch pad.'], 'Leave'))) return;
+    if (st.items && typed && !(await sure('Leave without filing?', [opts.leaveLine || 'Nothing is filed yet. What you wrote stays in the scratch pad.'], 'Leave'))) return;
     if (!st.items) spDraft = bg.querySelector('[data-sp-text]')?.value || '';
     bg.remove();
   };
@@ -212,9 +212,9 @@ function spOpen(opts = {}) {
   const review = () => {
     const n = st.items.filter(x => x.on).length, unsure = st.items.filter(x => x.on && (!x.dest || !x.sure)).length;
     body.innerHTML = `${st.ai ? '' : '<div class="alert amb small">Sorted by the CRM’s own word rules for now. The real AI sorts it smarter once the CRM is online.</div>'}
-      <div class="sp-sum">I found <b>${st.items.length}</b> thing${st.items.length === 1 ? '' : 's'}.${unsure ? ` <span class="pill amb">${unsure} to check</span>` : ' Everything has a place.'}</div>
+      ${opts.headHtml || ''}<div class="sp-sum">I found <b>${st.items.length}</b> thing${st.items.length === 1 ? '' : 's'}.${unsure ? ` <span class="pill amb">${unsure} to check</span>` : ' Everything has a place.'}</div>
       <div class="sp-list">${st.items.map(rowHtml).join('')}</div>`;
-    foot.innerHTML = `<button class="btn" data-sp-edit>‹ Change what I wrote</button><button class="btn pri" data-sp-file ${n ? '' : 'disabled'}>File ${n} item${n === 1 ? '' : 's'}</button>`;
+    foot.innerHTML = `${opts.headHtml ? '<button class="btn" data-sp-x>Cancel</button>' : '<button class="btn" data-sp-edit>‹ Change what I wrote</button>'}<button class="btn pri" data-sp-file ${n ? '' : 'disabled'}>File ${n} item${n === 1 ? '' : 's'}</button>`;
   };
   const sortIt = async () => {
     const text = (bg.querySelector('[data-sp-text]')?.value || st.text).trim();
@@ -227,13 +227,14 @@ function spOpen(opts = {}) {
     review();
   };
   const file = async () => {
-    const list = await spFileItems(st.items, st.parkedIds); if (!list) return;
+    const list = await spFileItems(st.items, st.parkedIds, opts.via, opts.stamp); if (!list) return;
+    if (opts.onFiled) await opts.onFiled(list);
     spDraft = ''; bg.remove(); render();
   };
   bg.addEventListener('click', e => {
     const t = e.target;
     if (t === bg || t.closest('[data-sp-x]')) return close();
-    if (t.closest('[data-sp-back]')) return st.items ? write() : close();
+    if (t.closest('[data-sp-back]')) return st.items && !opts.headHtml ? write() : close();
     if (t.closest('[data-sp-clear]')) { st.text = ''; spDraft = ''; return write(); }
     if (t.closest('[data-sp-sort]')) return sortIt();
     if (t.closest('[data-sp-edit]')) return write();
@@ -260,7 +261,7 @@ function spOpen(opts = {}) {
     const f = e.target.dataset.spF; if (f === 'text' || f === 'vendor') st.items[+row.dataset.i][f] = e.target.value;
   });
   bg.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
-  if (opts.items) { st.items = opts.items.map(x => ({ ...x, on: true })); review(); }
+  if (opts.items) { st.items = opts.items.map(x => ({ ...x, on: !x.off })); review(); }
   else if (opts.sortNow && st.text.trim()) { write(); sortIt(); } else write();
 }
 
@@ -383,7 +384,7 @@ async function padMove(id) {
       { name: 'kind', label: 'Kind', type: 'select', options: ['Purchase', 'Bill', 'Equipment', 'Insurance', 'Other'], half: true },
       { name: 'amount', label: 'Amount', type: 'money', half: true },
       { name: 'detail', label: 'Details', type: 'textarea' }], { title: x.text, kind: 'Other', amount: amt });
-    if (v) { line = `👤 ${esc(v.title)}${v.amount ? ' · ' + money(v.amount) : ''}`; add = () => db.approvals.push({ id: uid(), ...v, purchaseId: '', billId: '', status: 'pending', askedAt: now }); }
+    if (v) { line = `👤 ${esc(v.title)}${v.amount ? ' · ' + money(v.amount) : ''}`; add = () => db.approvals.push({ id: uid(), ...v, purchaseId: '', billId: '', status: 'pending', askedAt: now, ...stamp }); }
   } else if (dest === 'renewal') {
     v = await form('🛡️ Renewal', rnFields(), { name: x.text, expires: x.date });
     if (v) { line = `🛡️ ${esc(v.name)} · expires ${fmtDay(v.expires, true)}`; add = () => db.renewals.push({ id: uid(), ...v }); }

@@ -467,3 +467,12 @@ body.lay-sizing, body.lay-sizing * { cursor: nwse-resize !important; user-select
 body.side-wing, body.side-wing * { cursor: ew-resize !important; user-select: none; }
 body.side-splitting, body.side-splitting * { cursor: ns-resize !important; user-select: none; }
 @media (max-width: 760px) { .side-w { display: none; } }
+
+/* 📧 Emails into the CRM (email.js) */
+.em-card { border: 1px solid #cfe0ef; background: #f4f9fd; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+.em-top { display: flex; gap: 10px; align-items: flex-start; }
+.em-ico { font-size: 24px; line-height: 1; }
+.em-body summary { cursor: pointer; font-size: 13px; color: var(--brand); margin-top: 6px; }
+.em-body pre, .doc-prev-mail { white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 13px; line-height: 1.5; max-height: 260px; overflow: auto; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 0 0; text-align: left; }
+.doc-prev-img .doc-prev-mail { max-height: 100%; height: 100%; margin: 0; border: 0; box-sizing: border-box; }
+.em-paste-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }

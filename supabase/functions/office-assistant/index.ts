@@ -98,7 +98,9 @@ Deno.serve(async (req) => {
   if (spent.cost >= spent.cap) return reply({ error: `The assistant reached this month's limit ($${spent.cap}). It starts again on the 1st.`, capped: true }, 429);
 
   // mode "sort" = 📝 Scratch pad (notepad.js): her brain dump → separate items, each with where it goes. Nothing is saved here.
-  if (body.mode === "sort") {
+  // mode "email" = 📧 an email she brought in (email.js): same items, read from the newest message only.
+  if (body.mode === "sort" || body.mode === "email") {
+    const isMail = body.mode === "email";
     const text = String(body.text || "").slice(0, 8000);
     if (!text.trim()) return reply({ error: "Nothing written" }, 400);
     const SORT_SYSTEM = `You sort an office manager's quick notes for a water damage restoration company (SERVPLUS).
@@ -112,7 +114,8 @@ For each pick dest:
 - "renewal": insurance, license, registration, certificate expiring / renewing. date = when it expires.
 - "": you can't tell where it goes. Set sure false.
 Days: turn "friday", "next tue", "12/3", "dec 15", "tomorrow" into YYYY-MM-DD from TODAY (a weekday = the next one, today counts).
-sure = false when you are guessing. amount = a number, no $. Never invent amounts, dates or vendors.`;
+sure = false when you are guessing. amount = a number, no $. Never invent amounts, dates or vendors.${isMail ? `
+This is ONE EMAIL she received (FROM / SUBJECT / BODY). List only what SHE has to do or keep track of because of it: a bill to pay (vendor = who sent it), a renewal / expiring policy, a delivery day ("cal"), a question for the owner, a shop item someone asked for, a call or reply ("today"). A payment confirmation = "today" item "Mark the <vendor> bill paid". Ignore signatures, ads, legal footers, unsubscribe text and older quoted replies. Last item: "Reply to <name>: <subject>" (dest "today") only if the email asks something. Ads / newsletters with nothing to do = no items.` : ""}`;
     const SORT_SCHEMA = { type: "object", additionalProperties: false, required: ["items"], properties: { items: { type: "array", items: { type: "object", additionalProperties: false,
       required: ["text", "dest", "date", "amount", "vendor", "sure"],
       properties: { text: { type: "string" }, dest: { type: "string", enum: ["cal", "today", "bill", "shop", "owner", "renewal", ""] }, date: { type: "string" }, amount: { type: ["number", "null"] }, vendor: { type: "string" }, sure: { type: "boolean" } } } } } };
@@ -122,7 +125,7 @@ sure = false when you are guessing. amount = a number, no $. Never invent amount
         model: MODEL, max_tokens: 3000,
         output_config: { format: { type: "json_schema", schema: SORT_SCHEMA } },
         system: [{ type: "text", text: SORT_SYSTEM, cache_control: { type: "ephemeral" } }],
-        messages: [{ role: "user", content: `TODAY: ${String(body.today || "").slice(0, 10)}\nNOTES:\n${text}` }],
+        messages: [{ role: "user", content: `TODAY: ${String(body.today || "").slice(0, 10)}\n${isMail ? `FROM: ${String(body.from || "").slice(0, 200)}\nSUBJECT: ${String(body.subject || "").slice(0, 300)}\nDATE: ${String(body.date || "").slice(0, 80)}\nBODY:\n` : "NOTES:\n"}${text}` }],
       });
       const after = await usageNow();
       await putRow("ai_usage", { month: after.month, cost: after.cost + costOf(res.usage, MODEL), calls: after.calls + 1 });

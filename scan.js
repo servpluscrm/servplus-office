@@ -12,6 +12,7 @@ const SCAN_KINDS = {
   dmv: { label: 'DMV registration', ico: '🚚', file: 'DMV' },
   order: { label: 'Order confirmation / shipping', ico: '📦', file: 'Order' },
   payment: { label: 'Payment confirmation', ico: '✅', file: 'Payment' },
+  email: { label: 'Email', ico: '📧', file: 'Email' },
   other: { label: 'Something else', ico: '📁', file: 'Document' }
 };
 
@@ -29,6 +30,8 @@ async function fileDel(id) {
   await new Promise(res => { const t = d.transaction('files', 'readwrite'); t.objectStore('files').delete(id); t.oncomplete = res; t.onerror = res; });
 }
 async function docOpen(id) {
+  const doc = byId(db.docs || [], id);
+  if (doc?.kind === 'email') return ask('📧 ' + esc(doc.title || doc.name), `<pre class="doc-prev-mail" style="max-height:60vh">${esc(doc.text || '')}</pre>`, [{ label: 'Close', value: 1 }]);
   const f = await fileGet(id);
   if (!f) return toast('The original isn’t on this computer');
   window.open(URL.createObjectURL(f.blob), '_blank', 'noopener');
@@ -50,6 +53,8 @@ function docPreviewHtml(rec) {
 async function fillDocPreviews(root) {
   for (const el of root.querySelectorAll('.doc-prev[data-doc]')) {
     const f = await fileGet(el.dataset.doc), box = el.querySelector('.doc-prev-img');
+    const doc = byId(db.docs || [], el.dataset.doc);
+    if (doc?.kind === 'email') { box.innerHTML = `<pre class="doc-prev-mail">${esc(doc.text || doc.title || '')}</pre>`; el.title = ''; continue; }
     if (!f) { box.textContent = 'The original isn’t on this computer'; continue; }
     const url = URL.createObjectURL(f.blob);
     box.innerHTML = /pdf/.test(f.type || f.blob.type) ? `<iframe src="${url}#toolbar=0&view=FitH" title="Document"></iframe>` : `<img src="${url}" alt="Scanned document">`;
@@ -91,16 +96,16 @@ function scanPretend(file) {
 let scanQueue = [];
 function scanStart() {
   const inp = document.createElement('input');
-  inp.type = 'file'; inp.multiple = true; inp.accept = 'image/*,application/pdf';
+  inp.type = 'file'; inp.multiple = true; inp.accept = 'image/*,application/pdf,.eml,.msg,message/rfc822';
   inp.onchange = () => scanFiles([...inp.files]);
   inp.click();
 }
 async function scanFiles(files) {
-  files = files.filter(f => /^image\/|pdf$/.test(f.type) || /\.pdf$/i.test(f.name));
-  if (!files.length) return toast('Pick a picture or a PDF');
+  files = files.filter(f => /^image\/|pdf$/.test(f.type) || /\.pdf$/i.test(f.name) || emIsEmail(f));
+  if (!files.length) return toast('Pick a picture, a PDF or an email');
   scanQueue = files;
   for (let i = 0; i < scanQueue.length; i++) {
-    const keepGoing = await scanOne(scanQueue[i], i + 1, scanQueue.length);
+    const keepGoing = emIsEmail(scanQueue[i]) ? await emOne(scanQueue[i], i + 1, scanQueue.length) : await scanOne(scanQueue[i], i + 1, scanQueue.length);
     if (keepGoing === 'stop') break;
   }
   scanQueue = [];
@@ -272,7 +277,8 @@ views.scan = {
     return `<div class="page-head"><h1>📄 Smart Scan</h1></div>
       <div class="scan-drop" data-action="scanStart"><div style="font-size:40px">📄</div><div style="font-size:18px;font-weight:700">Scan anything</div>
         <div class="muted">Drop pictures or PDFs here, or click to pick them. On a phone it opens the camera.</div>
-        <div class="small muted" style="margin-top:6px">Bills · receipts · insurance · COIs · DMV · order and payment emails (saved as PDF)</div></div>
+        <div class="small muted" style="margin-top:6px">Bills · receipts · insurance · COIs · DMV · emails (drag one out of Outlook)</div></div>
+      <div class="em-paste-row"><button class="btn" data-action="emPaste">📧 Paste an email</button><span class="small muted">Copy an email in Outlook (Ctrl+A, Ctrl+C) and paste it here. Its to-dos, bills and dates go where they belong after you check them.</span></div>
       <div class="card" style="margin-top:16px">${cardHead('📁', 'Filed documents', `<input data-scan-q placeholder="Search documents" value="${esc(scanFilter)}" style="margin-left:auto;padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px">`)}
         ${list.length ? `<table class="tbl"><tr><th>Document</th><th class="ph-hide">Type</th><th>Amount</th><th class="ph-hide">Filed</th><th></th></tr>${list.map(d => `<tr class="click" data-action="docOpen" data-id="${d.id}">
           <td><b>${esc(d.name)}</b>${d.summary ? `<div class="small muted">${esc(d.summary)}</div>` : ''}</td>
