@@ -498,3 +498,6 @@ body.side-splitting, body.side-splitting * { cursor: ns-resize !important; user-
 .ct-mails a { color: var(--brand); text-decoration: none; }
 .ct-mailline { margin-top: 8px; font-size: 13px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .ct-mailline a { color: var(--brand); text-decoration: none; }
+.em-gist, .em-next { font-size: 13px; margin-top: 8px; line-height: 1.45; }
+.em-next { background: #eaf6ee; border: 1px solid #b9e0c5; border-radius: 8px; padding: 6px 9px; color: #1d5e33; }
+.pad-clearall { float: right; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 11px; text-decoration: underline; cursor: pointer; padding: 0; }

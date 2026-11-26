@@ -291,7 +291,7 @@ function padDraw() {
   if (document.activeElement !== ta && ta.value !== (h.pad || '')) ta.value = h.pad || '';
   const cb = box.querySelector('[data-pad-clean]');
   cb.disabled = padBusy; cb.textContent = padBusy ? '✨ Cleaning up…' : '✨ Clean up';
-  document.getElementById('padItems').innerHTML = items.length ? `<div class="pad-ih">Cleaned up · tap one to put it where it goes</div>${items.map(x => `<div class="pad-it ${x.dest ? '' : 'ask'}">
+  document.getElementById('padItems').innerHTML = items.length ? `<div class="pad-ih">Cleaned up · tap one to put it where it goes${items.length > 2 ? ' <button class="pad-clearall" data-pad-clearall>Clear all</button>' : ''}</div>${items.map(x => `<div class="pad-it ${x.dest ? '' : 'ask'}">
       <button class="pad-go" data-pad-go="${x.id}"><span class="pad-ico">${x.dest ? SP_DEST[x.dest].ico : '❓'}</span><span class="pad-tx"><b>${esc(x.text)}</b><small>${x.dest ? SP_DEST[x.dest].label + (x.date && ['cal', 'bill', 'renewal'].includes(x.dest) ? ' · ' + fmtDay(x.date) : '') : 'Needs a place'}</small></span><span class="pad-chev">›</span></button>
       <button class="pad-x" data-pad-del="${x.id}" title="Not needed">✕</button></div>`).join('')}` : '';
 }
@@ -395,3 +395,10 @@ async function padMove(id) {
   await saveDb(); render(); toast('✓ Put away');
 }
 
+// "Clear all" on the cleaned-up list (owner 2026-11-25: an email got chopped into a dozen lines)
+document.addEventListener('click', async e => {
+  if (!e.target.closest('[data-pad-clearall]')) return;
+  const n = padItems().length;
+  if (!(await sure(`Remove all ${n} items?`, ['Everything in the cleaned-up list goes away. Nothing already filed is touched.'], 'Yes, remove them'))) return;
+  hp().padItems = []; await saveDb(); padDraw();
+});

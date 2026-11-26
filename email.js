@@ -93,12 +93,39 @@ function emParsePasted(t) {
       body = lines.slice(j).join('\n').trim();
     }
   }
-  return { from, subject: subject || (body.split('\n').find(l => l.trim()) || '').slice(0, 80), date, body };
+  return { from, subject: subject || '', date, body };
 }
 // Does this look like a whole email someone pasted? (an address near the top + some length, or Outlook's From: / Subject: lines)
 function emLooksLike(t) {
-  const top = String(t || '').trim().split('\n').slice(0, 6).join('\n');
-  return (/^\s*From:\s*\S/im.test(top) && /^\s*(Subject|Sent|Date):/im.test(t)) || (/[\w.+-]+@[\w-]+\.[\w.-]+/.test(top) && t.length > 160);
+  t = String(t || '');
+  const top = t.trim().split('\n').slice(0, 6).join('\n');
+  if (/^\s*From:\s*\S/im.test(top) && /^\s*(Subject|Sent|Date):/im.test(t)) return true;
+  if (/[\w.+-]+@[\w-]+\.[\w.-]+/.test(top) && t.length > 160) return true;
+  // No address copied: a greeting at the top and a sign-off near the bottom
+  return t.length > 200 && /^\s*(hi|hello|hey|dear|good (morning|afternoon|evening))\b/im.test(t) && EM_SIGNOFF.test(t);
+}
+const EM_SIGNOFF = /^\s*(thanks|thank you|many thanks|sincerely|yours truly|truly|best|best regards|kind regards|warm regards|regards|cheers|respectfully|warmly|love|take care)\b[^\n]{0,20}$/im;
+// The name under the sign-off ("Yours truly,\nDaniel Klevit")
+function emSigName(body) {
+  const lines = String(body || '').split('\n').map(l => l.trim());
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (!EM_SIGNOFF.test(lines[i])) continue;
+    const nm = lines.slice(i + 1, i + 4).find(l => l && !/[\d@]/.test(l) && /^[A-Z][\w'.-]*(\s+[A-Z][\w'.-]*){0,3}$/.test(l));
+    if (nm) return nm;
+  }
+  return '';
+}
+// Who wrote it: the name on the From line, else the name they signed with, else the email's company part
+function emSender(mail) {
+  const n = String(mail.from || '').replace(/<[^>]*>/g, '').replace(/["']/g, '').trim();
+  return (n && !/@/.test(n) ? n : '') || emSigName(mail.body) || emWho(mail.from);
+}
+// What the email says, in one line: the first real sentence after the greeting
+function emGist(mail) {
+  const body = String(mail.body || '').replace(/^\s*(hi|hello|hey|dear|good (morning|afternoon|evening))\b[^\n]*\n/i, '');
+  let s = body.replace(/\s+/g, ' ').split(/(?<=[.!?])\s+/).find(x => x.length > 25 && !/^(i hope|hope (you|this|all)|happy|how are you)/i.test(x)) || '';
+  s = s.trim();
+  return s.length > 180 ? s.slice(0, 177).replace(/\s+\S*$/, '') + '…' : s;
 }
 // Only the newest message: drop older replies quoted under it, links and long footers
 function emTidy(body) {
@@ -127,7 +154,7 @@ function emDateNear(text, re) {
   return calParse(' ' + text.slice(m.index + m[0].length, m.index + m[0].length + 40).replace(/[,:]/g, ' ') + ' ')?.date || '';
 }
 function emGuess(mail) {
-  const who = emWho(mail.from), subj = (mail.subject || '').replace(/^\s*((re|fw|fwd)\s*:\s*)+/i, '').trim();
+  const who = emSender(mail), subj = (mail.subject || '').replace(/^\s*((re|fw|fwd)\s*:\s*)+/i, '').trim();
   const all = `${subj}\n${mail.body}`, n = norm(all), items = [];
   const amtM = all.match(/(?:amount due|total due|balance due|new balance|amount|total|balance|payment of)[^$\d\n]{0,25}\$\s?([\d,]+(?:\.\d{2})?)/i) || all.match(/\$\s?([\d,]+\.\d{2})/);
   const amount = amtM ? moneyParse(amtM[1]) : '';
@@ -152,11 +179,22 @@ function emGuess(mail) {
   if (/\b(need more|running low|out of|please order|can you order|can we get)\b/.test(n) && !items.some(x => x.dest === 'shop')) {
     const m = all.match(/\b(?:need more|running low on|out of|please order|can you order|can we get)\s+([^.\n!?]{2,80})/i);
     (m ? m[1] : subj).split(/\s*(?:,|\band\b)\s*(?:(?:we\s+)?(?:also\s+)?(?:need more|need|more|some)\s+)?/i).map(s => s.trim()).filter(s => s.length > 1)
-      .forEach(s => items.push({ text: spCap(s), dest: 'shop', date: '', amount: '', vendor: '', sure: false }));
+      .forEach(s => items.push({ text: spCap(s) + (who ? ` (${who} asked)` : ''), dest: 'shop', date: '', amount: '', vendor: '', sure: false }));
   }
   if (/\b(meeting|appointment|inspection|walk-?through|scheduled for|see you on)\b/.test(n) && !items.some(x => x.dest === 'cal')) {
     const d = emDateNear(all, /\b(meeting|appointment|inspection|walk-?through|scheduled for|see you|on)\b[:\s]*/i);
     if (d) items.push({ text: subj || `Meet ${who}`, dest: d === today() ? 'today' : 'cal', date: d, amount: '', vendor: '', sure: true });
+  }
+  // They asked to be called / written back: say who, how and what about, so the item makes sense on its own
+  const askM = mail.body.match(/[^.\n!?]*\b(call me|give me a call|phone me|text me|write me( back)?|email me|e-mail me|get back to me|reply|let me know|reach out to me|contact me)\b[^.\n!?]*[.!?]?/i);
+  if (askM) {
+    const s = askM[0].trim(), call = /\b(call|phone)\b/i.test(s), write = /\b(write|email|e-mail|reply|text|let me know|get back)\b/i.test(s);
+    const verb = call && write ? 'Call or write' : call ? 'Call' : 'Write';
+    let about = (s.match(/\b(?:back\s+)?(?:to|about|regarding|re:?)\s+(.{4,90}?)[.!?]?$/i) || [])[1] || '';
+    about = about.replace(/\b(me|my|I|I'm|I am)\b/g, m => ({ me: 'them', my: 'their', I: 'they', "I'm": 'they’re', 'I am': 'they are' }[m] || m));
+    const phone = (mail.body.match(/(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/) || [])[0];
+    items.push({ text: `${verb} ${who || 'them'} back${about ? ' about: ' + about : subj ? ' about “' + subj + '”' : ''}${phone && call ? ' · ' + phone : ''}`, dest: 'today', date: '', amount: '', vendor: '', sure: true });
+    return items;
   }
   // Always offer an answer back; ticked when the email asks something or nothing else was found
   items.push({ text: `Reply to ${who || 'them'}${subj ? ': ' + subj : ''}`, dest: 'today', date: '', amount: '', vendor: '', sure: true, off: items.length > 0 && !/\?/.test(mail.body) });
@@ -167,11 +205,12 @@ async function emSort(mail) {
     try {
       const r = await window.officeCloud.invoke('office-assistant', { mode: 'email', from: mail.from, subject: mail.subject, date: mail.date, text: mail.body, today: today() });
       const items = r?.data?.items || r?.items;
-      if (Array.isArray(items) && items.length) return { items: items.map(x => ({ text: x.text || '', dest: SP_DEST[x.dest] ? x.dest : '', date: x.date || '', amount: x.amount ?? '', vendor: x.vendor || '', sure: x.sure !== false })), ai: true };
+      if (Array.isArray(items)) return { items: items.map(x => ({ text: x.text || '', dest: SP_DEST[x.dest] ? x.dest : '', date: x.date || '', amount: x.amount ?? '', vendor: x.vendor || '', sure: x.sure !== false })), ai: true, summary: r?.summary || r?.data?.summary || '', next: r?.next || r?.data?.next || '' };
     } catch (e) { console.warn('Email AI failed, using the CRM rules', e); }
   }
   await new Promise(r => setTimeout(r, 400));
-  return { items: emGuess(mail), ai: false };
+  const items = emGuess(mail), first = items.find(x => !x.off);
+  return { items, ai: false, summary: emGist(mail), next: first ? first.text : 'Nothing to do. Just read it.' };
 }
 
 // ---------- The check window + filing ----------
@@ -186,10 +225,13 @@ async function emOne(file, n, of) {
 }
 function emCheck(mail, r, file, n, of) {
   return new Promise(res => {
-    const docId = uid(), who = emWho(mail.from);
+    const docId = uid(), who = emSender(mail);
+    if (!emWho(mail.from) || /@/.test(String(mail.from).replace(/<[^>]*>/g, ''))) mail.signer = who;
     const headHtml = `<div class="em-card">
-      <div class="em-top"><span class="em-ico">📧</span><div><b>${esc(mail.subject || '(no subject)')}</b>
+      <div class="em-top"><span class="em-ico">📧</span><div><b>${esc(mail.subject || (who ? 'Email from ' + who : '(no subject)'))}</b>
         <div class="small muted">${who ? 'From ' + esc(who) : ''}${mail.date ? ' · ' + esc(mail.date.replace(/\s*[+-]\d{4}.*$/, '').replace(/:\d\d$/, '')) : ''}${of > 1 ? ` · email ${n} of ${of}` : ''}</div></div></div>
+      ${r.summary ? `<div class="em-gist"><b>📝 What it says:</b> ${esc(r.summary)}</div>` : ''}
+      ${r.next ? `<div class="em-next"><b>➜ What to do next:</b> ${esc(r.next)}</div>` : ''}
       ${typeof ctMailLine === 'function' ? ctMailLine(mail) : ''}<details class="em-body"><summary>Read the email</summary><pre>${esc(mail.body || '')}</pre></details></div>`;
     spOpen({
       title: '📧 Email', headHtml, via: 'email', stamp: { docId },
@@ -200,7 +242,7 @@ function emCheck(mail, r, file, n, of) {
         const ext = file ? (file.name.match(/\.[a-z0-9]+$/i) || ['.eml'])[0] : '.txt';
         const name = `Email - ${(who || mail.subject || 'email').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 50)} - ${d.slice(5, 7)}.${d.slice(8, 10)}.${d.slice(2, 4)}${ext}`;
         await fileSave({ id: docId, blob, name, type: blob.type || 'message/rfc822', at: Date.now() });
-        db.docs.push({ id: docId, name, orig: file?.name || 'Pasted email', size: blob.size, type: blob.type, kind: 'email', vendor: who, fromEmail: ctEmailOf(mail.from), title: mail.subject, amount: '', at: Date.now(),
+        db.docs.push({ id: docId, name, orig: file?.name || 'Pasted email', size: blob.size, type: blob.type, kind: 'email', vendor: who, fromEmail: ctEmailOf(mail.from), title: mail.subject || (who ? 'Email from ' + who : 'Email'), amount: '', at: Date.now(),
           summary: list.map(x => SP_DEST[x.dest].ico + ' ' + x.text).join(' · '), text: `From: ${mail.from}\nSubject: ${mail.subject}\n${mail.date ? 'Date: ' + mail.date + '\n' : ''}\n${mail.body}`.slice(0, 5000) });
         await saveDb();
         res('filed');
@@ -251,3 +293,17 @@ padClean = async function () {
   const ta = document.getElementById('hpPad'); if (ta) ta.value = '';
   await saveDb(); render();
 };
+
+// An email pasted into the ✨ AI chat box (owner 2026-11-25: "it did the same thing in the chat box"): the box is one line,
+// so the paste is caught before the line breaks are lost and the email opens in the email window.
+document.addEventListener('paste', async e => {
+  if (e.target.id !== 'hpInput') return;
+  const t = e.clipboardData?.getData('text/plain') || '';
+  if (!emLooksLike(t)) return;
+  e.preventDefault();
+  toast('📧 That looks like an email. Reading it…');
+  const mail = emParsePasted(t); mail.body = emTidy(mail.body);
+  const r = await emSort(mail);
+  await emCheck(mail, r, null, 1, 1);
+  render();
+});

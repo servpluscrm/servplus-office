@@ -34,6 +34,7 @@ function ctGuessFromMail(mail) {
   if (sig) company = sig;
   const tail = lines.slice(-12).join('\n');
   const ph = (tail.match(/(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/) || [])[0] || '';
+  if (!name) name = mail.signer || (typeof emSigName === 'function' ? emSigName(mail.body) : '');
   if (!name && company) name = company;
   return { name, company, email, phone: ph ? ctPhoneFmt(ph) : '' };
 }
