@@ -501,3 +501,21 @@ body.side-splitting, body.side-splitting * { cursor: ns-resize !important; user-
 .em-gist, .em-next { font-size: 13px; margin-top: 8px; line-height: 1.45; }
 .em-next { background: #eaf6ee; border: 1px solid #b9e0c5; border-radius: 8px; padding: 6px 9px; color: #1d5e33; }
 .pad-clearall { float: right; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 11px; text-decoration: underline; cursor: pointer; padding: 0; }
+
+/* 🔐 Passwords vault (vault.js) */
+.vt-card { max-width: 900px; }
+.vt-how { margin: 6px 0 14px; padding-left: 20px; line-height: 1.7; }
+.vt-red { color: #b42318; font-weight: 600; }
+.vt-warn { background: #fff7e6; border: 1px solid #f5c26b; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; line-height: 1.5; }
+.vt-unlock { display: flex; gap: 8px; max-width: 460px; margin: 6px 0 10px; }
+.vt-unlock input { flex: 1; font-size: 16px; padding: 10px 12px; }
+.vt-links { margin-top: 12px; font-size: 13px; }
+.vt-list { display: flex; flex-direction: column; gap: 6px; }
+.vt-row { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid #e3e8ef; border-radius: 10px; cursor: pointer; background: #fff; }
+.vt-row:hover { border-color: var(--brand); background: #f5f9fd; }
+.vt-main { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.vt-main a { font-size: 12px; }
+.vt-pw { font-size: 13px; background: #f2f4f7; padding: 4px 8px; border-radius: 6px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vt-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.vt-pwtools { display: flex; gap: 6px; margin-top: 6px; }
+@media (max-width: 700px) { .vt-row { grid-template-columns: 1fr; } .vt-btns { justify-content: flex-start; } }

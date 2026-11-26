@@ -226,6 +226,7 @@ const PAGES = [
   ['dashboard', '🏠', 'Dashboard'],
   ['scan', '📄', 'Smart Scan'],
   ['contacts', '👤', 'Contacts'],
+  ['passwords', '🔐', 'Passwords'],
   ['workday', '☑️', 'My Workday'],
   ['requests', '🙋', 'Employee Requests'],
   ['purchasing', '🛒', 'Purchasing'],
