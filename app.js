@@ -224,25 +224,26 @@ function shrinkPhoto(file) {
 // ---------- Menu ----------
 const PAGES = [
   ['dashboard', '🏠', 'Dashboard'],
-  ['scan', '📄', 'Smart Scan'],
-  ['contacts', '👤', 'Contacts'],
-  ['passwords', '🔐', 'Passwords'],
-  ['workday', '☑️', 'My Workday'],
+  ['workday', '📅', 'Calendar'],
   ['requests', '🙋', 'Employee Requests'],
   ['purchasing', '🛒', 'Purchasing'],
   ['approvals', '✅', 'Owner Approvals'],
   ['bills', '🧾', 'Bills & Payments'],
   ['shop', '🔧', 'Shop & Equipment'],
   ['dispatch', '🌙', 'Dispatch Updates'],
-  ['employees', '👥', 'Employees'],
   ['stats', '📊', 'Company Stats'],
   ['insurance', '🛡️', 'Insurance & Licenses'],
   ['vehicles', '🚚', 'Company Vehicles'],
   ['resources', '📚', 'Company Resources'],
   ['calendar', '📅', 'Calendar & Coverage'],
   ['meetings', '🗣️', 'Company Meetings'],
+  ['contacts', '👤', 'Contacts'],
+  ['vault', '🗄️', 'Vault'],
   ['management', '⚙️', 'Management']
 ];
+// Pages that live inside another menu item (owner 2026-11-26: Passwords + Employees = one "Vault" section;
+// Smart Scan is only in the top bar now). The menu lights up the parent while one of them is open.
+const NAV_PARENT = { passwords: 'vault', employees: 'vault' };
 function navCount(page) {
   if (page === 'approvals') return pendingApprovals().length;
   if (page === 'purchasing') return db.purchases.filter(p => p.status === 'pending').length;
@@ -253,7 +254,7 @@ function navCount(page) {
 function drawNav(route) {
   document.getElementById('nav').innerHTML = PAGES.map(([id, ico, name]) => {
     const n = navCount(id);
-    return `<a class="nav-item ${route === id ? 'on' : ''}" href="#/${id}"><span class="ni">${ico}</span>${name}${n ? `<span class="nav-n">${n}</span>` : ''}</a>`;
+    return `<a class="nav-item ${route === id || NAV_PARENT[route] === id ? 'on' : ''}" href="#/${id}"><span class="ni">${ico}</span>${name}${n ? `<span class="nav-n">${n}</span>` : ''}</a>`;
   }).join('');
   const b = pendingApprovals().length;
   document.getElementById('bellN').textContent = b || '';
@@ -358,7 +359,7 @@ function workdayCard() {
   const { d, items, done } = workdayToday();
   return `<div class="card">${cardHead('☑️', 'My Workday', `<span class="pill grn" style="margin-left:auto">${done} of ${items.length}</span>`)}
     <div>${workdayList(items, d)}</div>
-    <a class="btn wide" style="display:block;text-align:center;margin-top:10px;text-decoration:none;background:var(--brand-soft);border-color:var(--brand-soft);color:var(--brand-dark)" href="#/workday">Open My Workday →</a></div>`;
+    <a class="btn wide" style="display:block;text-align:center;margin-top:10px;text-decoration:none;background:var(--brand-soft);border-color:var(--brand-soft);color:var(--brand-dark)" href="#/workday">Open Calendar →</a></div>`;
 }
 function purRow(p, full) {
   const st = PUR_STATUS[p.status];
@@ -418,7 +419,7 @@ function coverageCard() {
 views.workday = {
   html() {
     const { d, items, done } = workdayToday();
-    return `<div class="page-head"><h1>☑️ My Workday</h1><span class="pill grn">${done} of ${items.length} done</span></div>
+    return `<div class="page-head"><h1>📅 Calendar</h1><span class="pill grn">${done} of ${items.length} done</span></div>
       <div class="grid g-mid"><div class="card">${cardHead('📝', 'Today')}${workdayList(items, d)}
         <div style="display:flex;gap:8px;margin-top:12px"><input id="wdAdd" placeholder="Add something for today only" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px"><button class="btn pri" data-action="wdAdd">+ Add</button></div>
         <div class="small muted" style="margin-top:10px">The everyday list is changed in ⚙️ Management. Ticks save as you go; tomorrow starts fresh.</div></div>

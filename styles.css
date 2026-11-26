@@ -581,3 +581,9 @@ body.cl-gate-on > :not(.cl-gate):not(#toast):not(script) { display: none !import
 .sp-red { color: #b42318; font-weight: 600; }
 @media (max-width: 1300px) { .g-bot .sp-card { grid-column: auto; } }
 .alert.grn { background: #e3f4e8; color: #14532d; }
+/* 🗄️ Vault page (vault.js views.vault, 2026-11-26) */
+.vlt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.vlt-tile { display: flex; align-items: center; gap: 14px; text-decoration: none; color: inherit; }
+.vlt-tile:hover { border-color: var(--brand); }
+.vlt-ico { font-size: 30px; }
+.vlt-t { font-size: 17px; font-weight: 700; }

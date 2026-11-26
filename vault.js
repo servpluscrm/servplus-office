@@ -237,3 +237,17 @@ document.addEventListener('click', async e => {
 });
 // Another tab saved: the locked boxes changed, so forget what was opened
 if (chan) chan.addEventListener('message', () => vtOpenCache.clear());
+
+/* 🗄️ Vault (owner 2026-11-26): one menu item for Passwords + Employees, above Management. "We will make the password and
+   security later": for now it opens either page; both pages light up Vault in the menu (NAV_PARENT in app.js). */
+views.vault = {
+  html() {
+    const n = db.vault?.items?.length || 0;
+    const tile = (href, ico, title, sub) => `<a class="card vlt-tile" href="${href}"><span class="vlt-ico">${ico}</span><div><div class="vlt-t">${title}</div><div class="small muted">${sub}</div></div><span class="muted">›</span></a>`;
+    return `<div class="page-head"><h1>🗄️ Vault</h1><span class="pill gry">Owner + office manager only</span></div>
+      <div class="vlt-grid">
+        ${tile('#/passwords', '🔐', 'Passwords', vtReady() ? `${n} saved · locked with the master password` : 'Set up the master password to start')}
+        ${tile('#/employees', '👥', 'Employees', 'Employee records')}
+      </div>`;
+  }
+};
