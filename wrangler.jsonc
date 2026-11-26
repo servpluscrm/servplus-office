@@ -1,0 +1,7 @@
+// Cloudflare Worker that only serves the CRM's pages (built into ./dist by the build command:
+//   mkdir -p dist && cp index.html styles.css *.js dist/ ). Notes, setup files and the database SQL are never published.
+{
+  "name": "servplus-office",
+  "compatibility_date": "2026-11-01",
+  "assets": { "directory": "./dist", "not_found_handling": "single-page-application" }
+}
