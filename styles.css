@@ -519,3 +519,17 @@ body.side-splitting, body.side-splitting * { cursor: ns-resize !important; user-
 .vt-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .vt-pwtools { display: flex; gap: 6px; margin-top: 6px; }
 @media (max-width: 700px) { .vt-row { grid-template-columns: 1fr; } .vt-btns { justify-content: flex-start; } }
+
+/* 🌐 Online (cloud.js) */
+.cl-pill { border: 1px solid #d0d7e2; background: #fff; border-radius: 16px; padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.cl-pill.ok { color: #16794a; border-color: #b7e2c8; background: #effaf3; }
+.cl-pill.wait { color: #9a5b00; border-color: #f5c26b; background: #fff7e6; }
+.cl-pill.off { color: #667085; }
+body.cl-gate-on > :not(.cl-gate):not(#toast):not(script) { display: none !important; }
+.cl-gate { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #eef4fa; z-index: 50; }
+.cl-box { background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(11, 111, 184, .15); padding: 28px; width: min(380px, 92vw); }
+.cl-form { display: flex; flex-direction: column; gap: 10px; }
+.cl-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: #475467; }
+.cl-form input { padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; }
+.cl-msg { background: #fff7e6; border: 1px solid #f5c26b; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; font-size: 13px; }
+.cl-links { margin-top: 12px; font-size: 13px; text-align: center; }

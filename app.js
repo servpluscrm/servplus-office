@@ -765,7 +765,8 @@ views.management = {
       <div class="card">${cardHead('☑️', 'My Workday everyday list')}${db.settings.workday.map((w, i) => `<div class="row"><div class="row-main">${esc(w.text)}</div><button class="btn sm" data-action="wdUp" data-i="${i}">↑</button><button class="btn sm" data-action="wdDel" data-i="${i}">✕</button></div>`).join('')}
         <div style="display:flex;gap:8px;margin-top:10px"><input id="wdTpl" placeholder="Add an everyday item" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px"><button class="btn pri" data-action="wdTplAdd">+ Add</button></div></div></div>
       <div class="card">${cardHead('💾', 'Backup')}<div class="btn-row"><button class="btn" data-action="download">⬇ Download backup</button><button class="btn red" data-action="clearSamples">Remove practice data</button></div>
-      <div class="small muted" style="margin-top:8px">The data is only on this computer until the online database is set up. 🔒 No Social Security numbers are stored in this CRM.</div></div>`;
+      <div class="small muted" style="margin-top:8px">${window.officeCloud ? 'Everything is also saved in the office database online.' : 'The data is only on this computer until the online database is set up.'} 🔒 No Social Security numbers are stored in this CRM.</div></div>
+      ${typeof clCardHtml === 'function' ? clCardHtml() : ''}`;
   }
 };
 
@@ -961,9 +962,12 @@ function addSamples() {
 
 // ---------- Start ----------
 document.addEventListener('DOMContentLoaded', async () => {
-  db = (await loadDb()) || {};
+  const online = window.officeCloudStart ? await officeCloudStart() : null;   // cloud.js: sign in + the office database
+  db = online || (await loadDb()) || {};
   migrate();
-  if (!db.samplesAdded) { addSamples(); await saveDb(); }
+  if (!db.samplesAdded) addSamples();
+  await saveDb();                                                             // keep a copy on this computer
   wireSearch();
   render();
+  window.officeCloudAfter?.();
 });
