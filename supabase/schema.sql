@@ -1,4 +1,4 @@
--- Office CRM, its OWN Supabase project "ServPlus Office" (not the restoration CRM's). Paste ALL of this into
+﻿-- Office CRM, its OWN Supabase project "ServPlus Office" (not the restoration CRM's). Paste ALL of this into
 -- SQL Editor once (it is safe to run again). Only the people on office_staff (the owner + the office manager) can
 -- use anything, and once someone turns on 2-step sign-in, their login only works with the phone code too.
 -- 🔒 No Social Security numbers are ever stored. Saved passwords arrive already locked (vault.js), scrambled.
@@ -98,4 +98,4 @@ grant select, insert, update, delete on public.office_private to service_role;
 
 -- ---------- The two people (the office manager's line: put her email in and remove the -- in front) ----------
 insert into public.office_staff (email, name) values ('emergencyservicellc@gmail.com', 'Owner') on conflict do nothing;
--- insert into public.office_staff (email, name) values ('<office manager email>', 'Office Manager') on conflict do nothing;
+insert into public.office_staff (email, name) values ('servplusmarketing@gmail.com', 'Office Manager') on conflict do nothing;
