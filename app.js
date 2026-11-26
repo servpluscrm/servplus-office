@@ -84,6 +84,7 @@ function migrate() {
   db.workdayDays ||= {};
   db.receipts ||= [];
   db.docs ||= [];
+  db.contacts ||= [];
 }
 
 // ---------- Helpers ----------
@@ -224,6 +225,7 @@ function shrinkPhoto(file) {
 const PAGES = [
   ['dashboard', '🏠', 'Dashboard'],
   ['scan', '📄', 'Smart Scan'],
+  ['contacts', '👤', 'Contacts'],
   ['workday', '☑️', 'My Workday'],
   ['requests', '🙋', 'Employee Requests'],
   ['purchasing', '🛒', 'Purchasing'],
@@ -798,6 +800,7 @@ function searchAll(q) {
   db.bills.forEach(b => hit(b.vendor, b.what) && out.push({ t: b.vendor + ' · ' + money(b.amount), w: 'Bills · ' + billState(b).label, act: () => billOpen(b.id) }));
   db.equipment.forEach(e => hit(e.name, e.kind, e.brand, e.model, e.serial) && out.push({ t: e.name, w: 'Shop & Equipment · ' + EQUIP_STATUS[e.status].label, act: () => eqOpen(e.id) }));
   db.approvals.forEach(a => hit(a.title, a.detail) && out.push({ t: a.title, w: 'Owner Approvals', go: '#/approvals' }));
+  (db.contacts || []).forEach(c => hit(c.name, c.company, c.email, c.phone, c.notes) && out.push({ t: (c.important ? '⭐ ' : '') + c.name + (c.company ? ' · ' + c.company : ''), w: 'Contacts', act: () => ctOpen(c.id) }));
   db.renewals.forEach(r => hit(r.name, r.contact) && out.push({ t: r.name, w: 'Insurance & Licenses · expires ' + fmtDay(r.expires, true), act: () => rnOpen(r.id) }));
   return out.slice(0, 20);
 }
@@ -886,6 +889,7 @@ const actions = {
   }
 };
 document.addEventListener('click', e => {
+  if (e.target.closest('a[data-stop]')) return;   // a link inside a clickable card (email / phone) opens itself
   const a = e.target.closest('[data-action]');
   if (a && actions[a.dataset.action]) { e.preventDefault(); actions[a.dataset.action](a); return; }
   const g = e.target.closest('[data-go]');

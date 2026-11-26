@@ -190,7 +190,7 @@ function emCheck(mail, r, file, n, of) {
     const headHtml = `<div class="em-card">
       <div class="em-top"><span class="em-ico">📧</span><div><b>${esc(mail.subject || '(no subject)')}</b>
         <div class="small muted">${who ? 'From ' + esc(who) : ''}${mail.date ? ' · ' + esc(mail.date.replace(/\s*[+-]\d{4}.*$/, '').replace(/:\d\d$/, '')) : ''}${of > 1 ? ` · email ${n} of ${of}` : ''}</div></div></div>
-      <details class="em-body"><summary>Read the email</summary><pre>${esc(mail.body || '')}</pre></details></div>`;
+      ${typeof ctMailLine === 'function' ? ctMailLine(mail) : ''}<details class="em-body"><summary>Read the email</summary><pre>${esc(mail.body || '')}</pre></details></div>`;
     spOpen({
       title: '📧 Email', headHtml, via: 'email', stamp: { docId },
       leaveLine: 'Nothing from this email is filed.',
@@ -200,7 +200,7 @@ function emCheck(mail, r, file, n, of) {
         const ext = file ? (file.name.match(/\.[a-z0-9]+$/i) || ['.eml'])[0] : '.txt';
         const name = `Email - ${(who || mail.subject || 'email').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 50)} - ${d.slice(5, 7)}.${d.slice(8, 10)}.${d.slice(2, 4)}${ext}`;
         await fileSave({ id: docId, blob, name, type: blob.type || 'message/rfc822', at: Date.now() });
-        db.docs.push({ id: docId, name, orig: file?.name || 'Pasted email', size: blob.size, type: blob.type, kind: 'email', vendor: who, title: mail.subject, amount: '', at: Date.now(),
+        db.docs.push({ id: docId, name, orig: file?.name || 'Pasted email', size: blob.size, type: blob.type, kind: 'email', vendor: who, fromEmail: ctEmailOf(mail.from), title: mail.subject, amount: '', at: Date.now(),
           summary: list.map(x => SP_DEST[x.dest].ico + ' ' + x.text).join(' · '), text: `From: ${mail.from}\nSubject: ${mail.subject}\n${mail.date ? 'Date: ' + mail.date + '\n' : ''}\n${mail.body}`.slice(0, 5000) });
         await saveDb();
         res('filed');
