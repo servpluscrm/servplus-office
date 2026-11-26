@@ -76,9 +76,29 @@ function emParseMsg(buf, name) {
 // Copied out of Outlook: "From: … Sent: … To: … Subject: …" lines at the top
 function emParsePasted(t) {
   const take = re => { const m = t.match(re); return m ? m[1].trim() : ''; };
-  const from = take(/^\s*From:\s*(.+)$/im), subject = take(/^\s*Subject:\s*(.+)$/im), date = take(/^\s*(?:Sent|Date):\s*(.+)$/im);
-  const body = t.replace(/^\s*(From|Sent|Date|To|Cc|Subject|Importance):.*$/gim, '').trim();
+  let from = take(/^\s*From:\s*(.+)$/im), subject = take(/^\s*Subject:\s*(.+)$/im), date = take(/^\s*(?:Sent|Date):\s*(.+)$/im);
+  let body = t.replace(/^\s*(From|Sent|Date|To|Cc|Subject|Importance):.*$/gim, '').trim();
+  // Copied out of Gmail / the new Outlook: [Subject] / "Name <mail@x.com>" / "Nov 24, 11:13 AM (1 day ago)" / "to me"
+  if (!from) {
+    const lines = body.split('\n'), i = lines.slice(0, 6).findIndex(l => /[\w.+-]+@[\w-]+\.[\w.-]+/.test(l));
+    if (i >= 0) {
+      from = lines[i].trim();
+      const before = lines.slice(0, i).map(l => l.trim()).filter(Boolean);
+      if (!subject && before.length) subject = before[before.length - 1];
+      let j = i + 1;
+      while (j < lines.length && j < i + 4 && (!lines[j].trim() || /\b(am|pm|ago|\d{1,2}:\d\d)\b|^\s*to\s+(me|[\w.+-]+@)/i.test(lines[j]))) {
+        if (/\d{1,2}:\d\d|ago/i.test(lines[j]) && !date) date = lines[j].trim().replace(/\s*\(.*\)\s*$/, '');
+        j++;
+      }
+      body = lines.slice(j).join('\n').trim();
+    }
+  }
   return { from, subject: subject || (body.split('\n').find(l => l.trim()) || '').slice(0, 80), date, body };
+}
+// Does this look like a whole email someone pasted? (an address near the top + some length, or Outlook's From: / Subject: lines)
+function emLooksLike(t) {
+  const top = String(t || '').trim().split('\n').slice(0, 6).join('\n');
+  return (/^\s*From:\s*\S/im.test(top) && /^\s*(Subject|Sent|Date):/im.test(t)) || (/[\w.+-]+@[\w-]+\.[\w.-]+/.test(top) && t.length > 160);
 }
 // Only the newest message: drop older replies quoted under it, links and long footers
 function emTidy(body) {
@@ -216,3 +236,18 @@ document.addEventListener('drop', e => {
   emSort(mail).then(r => emCheck(mail, r, null, 1, 1)).then(() => render());
 });
 document.addEventListener('dragover', e => { if (e.target.closest?.('.scan-drop') && [...(e.dataTransfer?.types || [])].includes('text/plain')) e.preventDefault(); });
+
+// A whole email pasted into the 📝 Scratch pad (owner 2026-11-25: it was chopped into "Daniel Klevit <…>", "Hi everyone"…)
+// → ✨ Clean up reads it as ONE email (same window as Paste an email). Filed = the pad is emptied (kept once in padOld).
+const emPadClean0 = padClean;
+padClean = async function () {
+  const h = hp(), text = (document.getElementById('hpPad')?.value ?? h.pad ?? '').trim();
+  if (!emLooksLike(text)) return emPadClean0.apply(this, arguments);
+  const mail = emParsePasted(text); mail.body = emTidy(mail.body);
+  toast('📧 That looks like an email. Reading it…');
+  const r = await emSort(mail);
+  if ((await emCheck(mail, r, null, 1, 1)) !== 'filed') return;
+  h.padOld = text; h.pad = '';
+  const ta = document.getElementById('hpPad'); if (ta) ta.value = '';
+  await saveDb(); render();
+};
