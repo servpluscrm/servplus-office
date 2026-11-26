@@ -102,7 +102,8 @@ async function stLoad(quiet) {
     stAutoPush();
   } catch (e) { stErr = e.message || String(e); }
   finally { stLoading = false; }
-  if (route() === 'stats' && !document.querySelector('#main [data-st-in]:focus') && !document.querySelector('#modalRoot .modal-bg')) render();
+  stLoadedAt = Date.now();
+  if (['stats', 'dashboard'].includes(route()) && !document.querySelector('#main [data-st-in]:focus') && !document.querySelector('#modalRoot .modal-bg')) render();
 }
 async function stSave(key, field, raw) {
   const v = String(raw ?? '').replace(/[$,\s]/g, '');
@@ -204,3 +205,62 @@ document.addEventListener('change', async e => {
   setTimeout(() => { const next = document.activeElement?.dataset?.stIn; render(); if (next) document.querySelector(`[data-st-in="${next}"]`)?.focus(); }, 0);
 });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.closest?.('[data-st-in]')) { e.preventDefault(); e.target.blur(); } });
+
+/* 💰 How much can we spend this week (Dashboard, owner 2026-11-26: replaces Shop & Equipment + Coverage & Time Off there).
+   This stats week (Thursday 1 PM → Thursday 1 PM): Collected, Payroll $, Supplies, Bills % against 70%, and the room left:
+   Bills = (Payroll $ + Supplies) ÷ Collected ÷ 0.65 < 70%  ⇔  Payroll $ + Supplies < Collected × 0.455.
+   Shop requests not received yet (pending / approved / ordered) are counted against that room, and a new request or an
+   approve / order that would push the week over 70% says so in its "are you sure?" window (spendWarnLines). */
+const SP_SHARE = ST_GOAL * 0.65;   // 0.455 of what was collected can go to payroll + supplies
+let stLoadedAt = 0;
+const spOpenShop = skipId => (db.purchases || []).filter(p => !p.sample && p.id !== skipId && ['pending', 'approved', 'ordered'].includes(p.status)).reduce((s, p) => s + purTotal(p), 0);
+function spendWeek() {
+  if (!stData) return null;
+  const { start, end } = stWeek();
+  const T = stMaster(start, end), ty = stTyped(start, end);
+  const C = T.collected, used = ty.payroll + ty.supplies;
+  return { start, end, C, pay: ty.payroll, sup: ty.supplies, hrs: ty.hrs, used, bills: C > 0 ? used / C / 0.65 : null, room: C * SP_SHARE - used };
+}
+function spendEnsure() {
+  if (!window.officeCloud?.invoke || stLoading) return;
+  if ((!stData && !stErr) || Date.now() - stLoadedAt > 120000) { stLoadedAt = Date.now(); setTimeout(stLoad, 0); }
+}
+function spendCard() {
+  spendEnsure();
+  const head = cardHead('💰', 'How much can we spend this week', '', '#/stats');
+  if (!window.officeCloud) return `<div class="card">${head}<div class="empty">Shows once you’re signed in online (it reads the ServPlus CRM).</div></div>`;
+  const s = spendWeek();
+  if (!s) return `<div class="card">${head}<div class="empty">${stErr ? '⚠ ' + esc(stErr) : 'Loading this week’s numbers…'}</div></div>`;
+  const open = spOpenShop(), after = s.room - open;
+  const fmtD = d => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const bad = s.bills != null && s.bills >= ST_GOAL;
+  const line = s.C <= 0
+    ? `<div class="alert amb" style="margin:10px 0 0">💵 Nothing collected yet this week, so there’s no room to spend yet. Payroll and supplies so far: <b>${money(s.used)}</b>.</div>`
+    : s.room >= 0
+      ? `<div class="alert grn" style="margin:10px 0 0">✅ You can still spend about <b>${money(Math.floor(s.room))}</b> this week and stay under 70%.</div>`
+      : `<div class="alert red" style="margin:10px 0 0">🛑 This week is <b>${money(Math.ceil(-s.room))}</b> over: payroll + supplies are past 70% of what was collected.</div>`;
+  const shop = open > 0 && s.C > 0 ? `<div class="small ${after < 0 ? 'sp-red' : 'muted'}" style="margin-top:6px">🛒 Shop requests not received yet: <b>${money(open)}</b>${after < 0 ? ` · buying them all puts the week <b>${money(Math.ceil(-after))}</b> over 70%` : ` · after them about <b>${money(Math.floor(after))}</b> left`}</div>` : '';
+  return `<div class="card sp-card">${cardHead('💰', 'How much can we spend this week', `<span class="week-lbl">📅 ${fmtD(s.start)} 1 PM – ${fmtD(s.end)} 1 PM</span>`, '#/stats')}
+    <div class="bud-boxes">
+      <div class="bud-box b-buy"><div class="lbl">Collected so far</div><div class="num">${money(Math.round(s.C))}</div></div>
+      <div class="bud-box"><div class="lbl">Payroll $ <span class="muted">(${Math.round(s.hrs * 100) / 100} hrs)</span></div><div class="num">${money(Math.round(s.pay))}</div></div>
+      <div class="bud-box"><div class="lbl">Supplies</div><div class="num">${money(Math.round(s.sup))}</div></div>
+      <div class="bud-box ${s.bills == null ? '' : bad ? 'b-over' : 'b-left'}" title="(Payroll $ + Supplies) ÷ Collected ÷ 0.65"><div class="lbl">Bills · goal under 70%</div><div class="num">${s.bills == null ? '—' : Math.round(s.bills * 100) + '%'}</div></div>
+    </div>
+    ${line}${shop}</div>`;
+}
+// One line for the Weekly Shop Budget card
+function spendBudgetLine(pending) {
+  const s = spendWeek(); if (!s || s.C <= 0) return '';
+  const after = s.room - spOpenShop();
+  return after < 0
+    ? `<div class="alert red" style="margin:10px 0 0">📊 ${s.room < 0 ? `This week’s Bills are already over 70% (about ${money(Math.ceil(-s.room))} over)` : `Buying what’s pending pushes this week’s Bills over 70% (about ${money(Math.ceil(-after))} over)`}. Check before approving.</div>`
+    : `<div class="small muted" style="margin-top:8px">📊 Bills this week: <b>${s.bills == null ? '—' : Math.round(s.bills * 100) + '%'}</b> of 70% · about <b>${money(Math.floor(after))}</b> of room after pending</div>`;
+}
+// Lines for the "are you sure?" window of a purchase (amount = this purchase, id = this purchase when it is already open)
+function spendWarnLines(amount, id) {
+  const s = spendWeek(); if (!s || !(amount > 0)) return [];
+  if (s.C <= 0) return [`📊 Nothing collected yet this week, so this purchase is over the 70% spending goal for now.`];
+  const left = s.room - spOpenShop(id);
+  return left - amount < 0 ? [`📊 <b>This pushes this week’s Bills over 70%</b>: about ${money(Math.max(0, Math.floor(left)))} of room left, this is ${money(amount)}.`] : [];
+}

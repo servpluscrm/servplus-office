@@ -315,7 +315,7 @@ views.dashboard = {
   html() {
     return `<div class="grid g-top">${budgetCard()}${approvalsCard()}</div>
       <div class="grid g-mid">${workdayCard()}${queueCard()}</div>
-      <div class="grid g-bot">${billsCard()}${shopCard()}${dispatchCard()}${coverageCard()}</div>`;
+      <div class="grid g-bot">${billsCard()}${spendCard()}${dispatchCard()}</div>`;
   }
 };
 function budgetCard() {
@@ -333,6 +333,7 @@ function budgetCard() {
     </div>
     <div class="bud-bar">${seg(w.spent, 'bb-buy', `${money(w.spent)} purchased (${pct(w.spent)}%)`)}${seg(w.pending, 'bb-pen', `${money(w.pending)} pending (${pct(w.pending)}%)`)}${over ? '' : seg(w.left, 'bb-left', `${money(w.left)} left (${pct(w.left)}%)`)}</div>
     ${over ? `<div class="alert red" style="margin:10px 0 0">Buying everything pending puts this week ${money(-w.left)} over the ${money(w.budget)} budget.</div>` : ''}
+    ${typeof spendBudgetLine === 'function' ? spendBudgetLine(w.pending) : ''}
   </div>`;
 }
 function approvalsCard() {
@@ -483,6 +484,7 @@ async function purNew() {
   const lines = [`<b>${esc(v.item)}</b>${v.qty > 1 ? ' × ' + v.qty : ''} · ${money((v.price || 0) * v.qty)}`];
   if (rep) lines.push(`🔁 <b>Ordered ${rep} time${rep > 1 ? 's' : ''} in the last 30 days.</b> Check the shop before ordering more.`);
   if (w.left - (v.price || 0) * v.qty < 0) lines.push(`⚠️ This puts this week over the ${money(w.budget)} budget.`);
+  if (typeof spendWarnLines === 'function') lines.push(...spendWarnLines((v.price || 0) * v.qty));
   if (!(await sure('Add this purchase request?', lines))) return;
   db.purchases.push({ id: uid(), ...v, status: 'pending', at: Date.now() });
   await saveDb(); render(); toast('✓ Request added');
@@ -516,6 +518,7 @@ async function purOpen(id) {
   if (a === 'owner') return apNew({ title: p.item + (p.qty > 1 ? ' × ' + p.qty : ''), kind: 'Purchase', detail: [p.supplier, p.equipment].filter(Boolean).join(' · '), amount: purTotal(p), purchaseId: p.id });
   const words = { approve: ['Approve this purchase?', 'Approve'], decline: ['Decline this purchase?', 'Decline'], order: ['Mark it as ordered?', 'Yes, ordered'], receive: ['Mark it as received?', 'Yes, received'] }[a];
   const extra = a === 'order' && shopWeek().spent + purTotal(p) > shopWeek().budget ? [`⚠️ This week will be over the ${money(shopWeek().budget)} budget.`] : [];
+  if ((a === 'approve' || a === 'order') && typeof spendWarnLines === 'function') extra.push(...spendWarnLines(purTotal(p), p.status === 'pending' ? p.id : null));
   if (!(await sure(words[0], [`${esc(p.item)} · ${money(purTotal(p))}`, ...extra], words[1]))) return;
   if (a === 'approve') p.status = 'approved';
   if (a === 'decline') p.status = 'declined';

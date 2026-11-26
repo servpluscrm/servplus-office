@@ -575,3 +575,9 @@ body.cl-gate-on > :not(.cl-gate):not(#toast):not(script) { display: none !import
 .st-grid td.st-sheet { font-style: italic; color: #5b5b5b; }
 .st-grid .r-pay td { background: #fff3cd; color: #6b5a1f; }
 .st-sheet-note { background: #fff8e6; border-radius: 6px; padding: 4px 8px; display: inline-block; margin: -4px 0 8px; }
+/* 💰 How much can we spend this week (stats.js spendCard, 2026-11-26) */
+.g-bot .sp-card { grid-column: span 2; }
+.sp-card .bud-boxes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.sp-red { color: #b42318; font-weight: 600; }
+@media (max-width: 1300px) { .g-bot .sp-card { grid-column: auto; } }
+.alert.grn { background: #e3f4e8; color: #14532d; }
