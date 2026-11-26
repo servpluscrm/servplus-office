@@ -212,6 +212,16 @@ function clCodeForm(msg = '') {
     g.querySelector('[data-out]').addEventListener('click', e => { e.preventDefault(); res(null); });
   });
 }
+// Say what really went wrong (2026-11-25: "email not confirmed" was shown as "don't match")
+function clAuthMsg(err, signup) {
+  const c = err?.code || '', m = String(err?.message || '');
+  if (c === 'email_not_confirmed' || /not confirmed/i.test(m)) return '📧 This email isn’t confirmed yet. Click the link in the email Supabase sent you (check spam), then sign in.';
+  if (c === 'user_already_exists' || /already registered/i.test(m)) return 'There is already a login for this email. Sign in instead.';
+  if (c === 'over_email_send_rate_limit' || c === 'over_request_rate_limit' || /rate limit/i.test(m)) return 'Too many tries for now. Wait a few minutes and try again.';
+  if (c === 'weak_password' || /password should/i.test(m)) return 'Pick a longer password (at least 10 characters).';
+  if (c === 'invalid_credentials' || /invalid login/i.test(m)) return 'That email and password don’t match.';
+  return (signup ? 'Could not make the login: ' : 'Could not sign in: ') + esc(m || 'unknown error');
+}
 async function clSignIn() {
   const auth = CL.sb.auth;
   let { data: { session } } = await auth.getSession();
@@ -219,9 +229,9 @@ async function clSignIn() {
   while (!session) {
     const v = await clSignInForm(msg);
     const r = v.signup ? await auth.signUp({ email: v.email, password: v.pass }) : await auth.signInWithPassword({ email: v.email, password: v.pass });
-    if (r.error) { msg = v.signup ? r.error.message : 'That email and password don’t match.'; continue; }
+    if (r.error) { msg = clAuthMsg(r.error, v.signup); continue; }
     session = r.data.session;
-    if (!session) msg = 'Login made. Now sign in.';
+    if (!session) msg = '📧 Login made. Open the email Supabase just sent you and click its link to confirm, then sign in here.';
   }
   // 2-step code, when this login has it turned on
   const { data: aal } = await auth.mfa.getAuthenticatorAssuranceLevel();
