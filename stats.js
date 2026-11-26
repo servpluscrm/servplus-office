@@ -61,10 +61,30 @@ function stNums(boardId, from, to) {
   return n;
 }
 const stSup = d => (d.supplies !== '' && d.supplies != null ? +d.supplies || 0 : +d.suppliesAuto || 0);
+// Same settings as the ServPlus CRM (its db.statConfig): Payroll $ = hrs × rate; before the cut the master numbers are the old Google sheet's
+const stCfg = () => stData.statConfig || {};
+const stRate = () => +stCfg().rate || 40.5;
+const stCut = () => stKeyTime(stCfg().sheetUntil || '2026-11-19pm');
 function stTyped(from, to) {
-  const f = +from, t = +to, n = { meetings: 0, hrs: 0, supplies: 0, payroll: 0, hasPay: false };
+  const f = +from, t = +to, n = { meetings: 0, hrs: 0, supplies: 0, payroll: 0 };
   for (const d of stData.statDays || []) { const x = stKeyTime(d.id); if (x < f || x >= t) continue; n.meetings += +d.meetings || 0; n.hrs += +d.hrs || 0; n.supplies += stSup(d); }
-  for (const w of stData.statWeeks || []) { const x = stKeyTime(w.id + 'pm'); if (x < f || x >= t) continue; if (w.payroll !== '' && w.payroll != null) { n.payroll += +w.payroll || 0; n.hasPay = true; } }
+  n.payroll = n.hrs * stRate();
+  return n;
+}
+// 📜 The old Google sheet's days (statDays[].sheet), then the CRM's own numbers from the cut on (= the ServPlus CRM's stMaster)
+function stMaster(from, to) {
+  const cut = stCut(), f = +from, t2 = Math.min(+to, cut);
+  const n = +to > cut ? stNums(null, new Date(Math.max(f, cut)), to) : { calls: 0, landed: 0, values: 0, withEst: 0, invoiced: 0, collected: 0 };
+  n.sheet = false;
+  for (const d of stData.statDays || []) {
+    const s = d.sheet; if (!s) continue;
+    const x = stKeyTime(d.id); if (x < f || x >= t2) continue;
+    n.sheet = true;
+    n.calls += +s.calls || 0; n.landed += +s.landed || 0; n.values += +s.values || 0; n.withEst += +s.landed || 0;
+    n.invoiced += +s.invoiced || 0; n.collected += +s.collected || 0;
+  }
+  n.rate = n.calls ? n.landed / n.calls : null; n.avg = n.withEst ? n.values / n.withEst : null;
+  n.allSheet = +to <= cut;
   return n;
 }
 const stM = v => (v ? money(Math.round(v)) : '—');
@@ -126,12 +146,13 @@ views.stats = {
     if (!window.officeCloud) return head + `<div class="card"><div class="empty">Company Stats come from the ServPlus CRM, so they show once you’re signed in online.</div></div>`;
     if (!stData) { if (!stErr) setTimeout(stLoad, 0); return head + `<div class="card"><div class="empty">${stErr ? '⚠ ' + esc(stErr) + ' <button class="btn sm" data-st-retry>Try again</button>' : 'Loading the numbers from the ServPlus CRM…'}</div></div>`; }
     const bs = stBuckets(), from = bs[0].from, to = bs.at(-1).to, week = stMode === 'week';
-    const T = stNums(null, from, to), ty = stTyped(from, to);
-    const spend = T.collected > 0 && (ty.hasPay || ty.supplies) ? (ty.payroll + ty.supplies) / T.collected / 0.65 : null;
-    const cols = bs.map(b => ({ b, n: stNums(null, b.from, b.to), t: stTyped(b.from, b.to), d: (stData.statDays || []).find(d => d.id === stColKey(b.from)) || {} }));
-    const wk = week ? (stData.statWeeks || []).find(w => w.id === stYmd(from)) : null;
-    const kpi = (v, l, cls = '') => `<div class="st-kpi ${cls}"><div class="st-kv">${v}</div><div class="st-kl">${l}</div></div>`;
-    const row = (label, cls, fn, tot) => `<tr class="${cls}"><th>${label}</th>${cols.map(c => `<td class="${c.b.today ? 'st-today' : ''}">${fn(c)}</td>`).join('')}<td class="st-tot">${tot}</td></tr>`;
+    const T = stMaster(from, to), ty = stTyped(from, to);
+    const div = (a, b, g) => (b > 0 && a > 0 ? a / b / g : null);
+    const labor = div(ty.payroll, T.values, 0.5), spend = div(ty.supplies, T.values, 0.3), bills = div(ty.payroll + ty.supplies, T.collected, 0.65);
+    const good = (v, goal) => (v == null ? '' : v >= goal ? 'st-bad' : 'st-good');
+    const cols = bs.map(b => ({ b, n: stMaster(b.from, b.to), t: stTyped(b.from, b.to), d: (stData.statDays || []).find(d => d.id === stColKey(b.from)) || {} }));
+    const kpi = (v, l, cls = '', tip = '') => `<div class="st-kpi ${cls}" title="${esc(tip)}"><div class="st-kv">${v}</div><div class="st-kl">${l}</div></div>`;
+    const row = (label, cls, fn, tot, typed) => `<tr class="${cls}"><th>${label}</th>${cols.map(c => `<td class="${c.b.today ? 'st-today' : ''}${!typed && c.n.allSheet && c.n.sheet ? ' st-sheet' : ''}">${fn(c)}</td>`).join('')}<td class="st-tot">${tot}</td></tr>`;
     const cell = (c, field, fmt) => week ? `<input class="st-in" data-st-in="${stColKey(c.b.from)}|${field}" value="${esc(c.d[field] ?? '')}" placeholder="${field === 'supplies' && +c.d.suppliesAuto ? esc(money(+c.d.suppliesAuto)) : ''}" inputmode="decimal" autocomplete="off">` : fmt(c.t);
     const title = week ? `${from.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} 1 PM – ${to.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} 1 PM`
       : from.toLocaleDateString([], { month: 'long', year: 'numeric' });
@@ -143,9 +164,12 @@ views.stats = {
         <span class="muted small st-live">${stErr ? '⚠ ' + esc(stErr) : '🔗 Live from the ServPlus CRM'}</span></div>
       <div class="st-kpis">${kpi(stN(T.calls), 'Calls taken')}${kpi(stP(T.rate), 'Land rate')}${kpi(stM(T.avg), 'Avg job value')}${kpi(stM(T.invoiced), 'Invoiced')}${kpi(stM(T.collected), 'Collected')}</div>
       <div class="st-kpis st-kpis-co">${kpi(stN(ty.meetings), 'Meetings')}
-        ${kpi(week ? `<input class="st-in st-pay" data-st-in="${stYmd(from)}|payroll" value="${esc(wk?.payroll ?? '')}" placeholder="Type $" inputmode="decimal" autocomplete="off">` : stM(ty.payroll), 'Payroll $ (true labor cost)')}
+        ${kpi(stM(ty.payroll), `Payroll $ · ${money(stRate())}/hr`, '', 'Payroll hrs × the hourly cost (changed on the ServPlus CRM Dashboard)')}
         ${kpi(stM(ty.supplies), 'Supplies')}
-        ${kpi(stP(spend), 'Spending · goal under 70%', spend == null ? '' : spend >= ST_GOAL ? 'st-bad' : 'st-good')}</div>
+        ${kpi(stP(labor), 'Labor cost', good(labor, 1), '(Payroll $ ÷ Job values) ÷ 0.5 · under 100% is on target')}
+        ${kpi(stP(spend), 'Spend', good(spend, 1), '(Supplies ÷ Job values) ÷ 0.3 · under 100% is on target')}
+        ${kpi(stP(bills), 'Bills · goal under 70%', good(bills, ST_GOAL), '((Payroll $ + Supplies) ÷ Collected) ÷ 0.65')}</div>
+      ${T.sheet ? `<div class="small st-sheet-note">📜 Days before ${new Date(stCut()).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} show the old Google sheet (in grey)</div>` : ''}
       <div class="st-scroll"><table class="st-grid">
         <tr><th></th>${cols.map(c => `<th class="${c.b.today ? 'st-today' : ''}">${esc(c.b.label)}<small>${esc(c.b.sub)}</small></th>`).join('')}<th class="st-tot">Total</th></tr>
         ${row('Calls taken', 'r-calls', c => stN(c.n.calls), stN(T.calls))}
@@ -155,12 +179,13 @@ views.stats = {
         ${row('Invoiced', 'r-inv', c => stM(c.n.invoiced), stM(T.invoiced))}
         ${row('Collected', 'r-coll', c => stM(c.n.collected), stM(T.collected))}
         <tr class="st-co-gap"><th colspan="${cols.length + 2}">🏢 Typed in by the office · click a box and type</th></tr>
-        ${row('Meetings', 'r-meet', c => cell(c, 'meetings', t => stN(t.meetings)), stN(ty.meetings))}
-        ${row('Payroll hrs', 'r-hrs', c => cell(c, 'hrs', t => (t.hrs ? String(Math.round(t.hrs * 10) / 10) : '—')), ty.hrs ? String(Math.round(ty.hrs * 10) / 10) : '—')}
-        ${row('Supplies', 'r-sup', c => cell(c, 'supplies', t => stM(t.supplies)), stM(ty.supplies))}
+        ${row('Meetings', 'r-meet', c => cell(c, 'meetings', t => stN(t.meetings)), stN(ty.meetings), true)}
+        ${row('Payroll hrs', 'r-hrs', c => cell(c, 'hrs', t => (t.hrs ? String(Math.round(t.hrs * 100) / 100) : '—')), ty.hrs ? String(Math.round(ty.hrs * 100) / 100) : '—', true)}
+        ${row('Payroll $', 'r-pay', c => stM(c.t.payroll), stM(ty.payroll), true)}
+        ${row('Supplies', 'r-sup', c => cell(c, 'supplies', t => stM(t.supplies)), stM(ty.supplies), true)}
       </table></div>
       <div class="st-boards">${per}</div>
-      <div class="small muted" style="margin-top:8px">Supplies fill in from your scanned receipts (shown faded); type a number to replace it. Spending = (Payroll $ + Supplies) ÷ Collected ÷ 0.65.</div></div>`;
+      <div class="small muted" style="margin-top:8px">Supplies fill in from your scanned receipts (shown faded); type a number to replace it. Payroll $ = Payroll hrs × the hourly cost. Labor cost = (Payroll $ ÷ Job values) ÷ 0.5, Spend = (Supplies ÷ Job values) ÷ 0.3, Bills = ((Payroll $ + Supplies) ÷ Collected) ÷ 0.65.</div></div>`;
   },
   after() {
     clearInterval(stPoll);

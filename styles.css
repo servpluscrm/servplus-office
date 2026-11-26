@@ -569,3 +569,9 @@ body.cl-gate-on > :not(.cl-gate):not(#toast):not(script) { display: none !import
 .st-boards { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
 .st-board { background: #f5f8fb; border-radius: 8px; padding: 6px 10px; font-size: 13px; display: flex; gap: 8px; }
 @media (max-width: 800px) { .st-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* 📜 Sheet history + Labor cost / Spend (stats.js, 2026-11-25) */
+.st-kpis-co { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+@media (max-width: 1100px) { .st-kpis-co { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; } }
+.st-grid td.st-sheet { font-style: italic; color: #5b5b5b; }
+.st-grid .r-pay td { background: #fff3cd; color: #6b5a1f; }
+.st-sheet-note { background: #fff8e6; border-radius: 6px; padding: 4px 8px; display: inline-block; margin: -4px 0 8px; }
