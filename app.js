@@ -235,7 +235,7 @@ const PAGES = [
   ['insurance', '🛡️', 'Insurance & Licenses'],
   ['vehicles', '🚚', 'Company Vehicles'],
   ['resources', '📚', 'Company Resources'],
-  ['calendar', '📅', 'Calendar & Coverage'],
+  ['calendar', '🏖️', 'Time Off'],
   ['meetings', '🗣️', 'Company Meetings'],
   ['contacts', '👤', 'Contacts'],
   ['vault', '🗄️', 'Vault'],
@@ -738,7 +738,7 @@ async function rnOpen(id) {
 views.calendar = {
   html() {
     const list = db.timeOff.slice().sort((a, b) => b.from.localeCompare(a.from));
-    return `<div class="page-head"><h1>📅 Calendar & Coverage</h1><button class="btn pri" data-action="toNew">+ Add time off</button><button class="btn" data-action="backups">✏️ Backups</button></div>
+    return `<div class="page-head"><h1>🏖️ Time Off</h1><button class="btn pri" data-action="toNew">+ Add time off</button><button class="btn" data-action="backups">✏️ Backups</button></div>
       <div class="grid g-top"><div class="card">${cardHead('✈️', 'Time off')}${list.map(t => `<div class="row"><div class="row-main"><div class="row-t">${esc(t.who)}</div><div class="row-s">${fmtDay(t.from)} – ${fmtDay(t.to, true)}${t.note ? ' · ' + esc(t.note) : ''}</div></div>${t.to < today() ? '<span class="pill gry">Past</span>' : '<span class="pill amb">Upcoming</span>'}<button class="btn sm" data-action="toDel" data-id="${t.id}">✕</button></div>`).join('') || '<div class="empty">No time off planned.</div>'}</div>
       ${coverageCard()}</div>`;
   }

@@ -19,7 +19,7 @@ The office manager's CRM (bills, shop purchasing, equipment, owner approvals, re
 - Owner Approvals: Approve / Pay later (date) / Decline, history kept.
 - Bills: add, due / late states, Mark paid (monthly bills add next month's), near-30-days-late warning.
 - Shop & Equipment: machines with condition, counts per type, parts ordered per machine.
-- Insurance & Licenses renewals, Calendar & Coverage (time off + backups), Management (budget, everyday workday list, backup download).
+- Insurance & Licenses renewals, Time Off (time off + backups; was Calendar & Coverage, renamed 2026-11-27; menu order: Dashboard, Calendar (My Workday), …, Contacts, Vault (Passwords + Employees), Management), Management (budget, everyday workday list, backup download).
 - Not built yet ("Coming next" pages): Employee Requests, Employees, Company Stats (spending stat formula), Vehicles, Resources, Meetings, Help.
 
 ## 📄 Smart Scan (scan.js, 2026-11-25)
